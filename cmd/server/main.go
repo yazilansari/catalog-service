@@ -1,0 +1,113 @@
+package main
+
+import (
+	categoryRoutes "catalog-service/internal/category/routes"
+	"catalog-service/internal/database"
+	catalogMiddleware "catalog-service/internal/middleware"
+	redisClient "catalog-service/internal/redis"
+
+	"log"
+	"os"
+
+	"github.com/gofiber/fiber/v2"
+
+	fiberCors "github.com/gofiber/fiber/v2/middleware/cors"
+	fiberLogger "github.com/gofiber/fiber/v2/middleware/logger"
+	fiberRecover "github.com/gofiber/fiber/v2/middleware/recover"
+	fiberRequestID "github.com/gofiber/fiber/v2/middleware/requestid"
+
+	"github.com/joho/godotenv"
+)
+
+func main() {
+
+	// Load ENV
+
+	err := godotenv.Load()
+
+	if err != nil {
+		log.Fatal(".env file not loaded")
+	}
+
+	// Connect PostgreSQL
+
+	database.ConnectPostgres()
+
+	log.Println("✅ PostgreSQL Connected")
+
+	// Connect Redis
+
+	redisClient.ConnectRedis()
+
+	redisClient.InitFiberStorage()
+
+	log.Println("✅ Redis Connected")
+
+	// Fiber App
+
+	app := fiber.New(fiber.Config{
+		AppName: "Ahmed Catalog Service",
+	})
+
+	// =========================
+	// Global Middleware
+	// =========================
+
+	// Panic Recovery
+
+	app.Use(fiberRecover.New())
+
+	// Request ID
+
+	app.Use(fiberRequestID.New())
+
+	// Logger
+
+	app.Use(fiberLogger.New())
+
+	// CORS
+
+	app.Use(fiberCors.New(fiberCors.Config{
+		AllowOrigins: "http://localhost:3000, https://ae.ahmedalmaghribi.com, https://ksa.ahmedalmaghribi.com, https://qa.ahmedalmaghribi.com, https://kw.ahmedalmaghribi.com, https://bh.ahmedalmaghribi.com, https://om.ahmedalmaghribi.com",
+		AllowHeaders: "Origin, Content-Type, Accept, Authorization",
+		AllowMethods: "GET, POST, PUT, PATCH, DELETE, OPTIONS",
+	}))
+
+	// Tenant Middleware
+
+	app.Use(catalogMiddleware.TenantMiddleware())
+
+	// =========================
+	// Health Check
+	// =========================
+
+	api := app.Group("/api/v1")
+
+	app.Get("/health", func(c *fiber.Ctx) error {
+
+		return c.JSON(fiber.Map{
+			"status":  "ok",
+			"service": "catalog-service",
+		})
+	})
+
+	// =========================
+	// Routes
+	// =========================
+
+	categoryRoutes.SetupCategoryRoutes(api)
+
+	// =========================
+	// Start Server
+	// =========================
+
+	port := os.Getenv("APP_PORT")
+
+	if port == "" {
+		port = "8081"
+	}
+
+	log.Println("🚀 Catalog Service Running On Port:", port)
+
+	log.Fatal(app.Listen(":" + port))
+}
