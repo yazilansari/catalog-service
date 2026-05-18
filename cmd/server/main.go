@@ -11,10 +11,11 @@ import (
 
 	"github.com/gofiber/fiber/v2"
 
+	"catalog-service/internal/logger"
+	requestMiddleware "catalog-service/internal/middleware"
+
 	fiberCors "github.com/gofiber/fiber/v2/middleware/cors"
-	fiberLogger "github.com/gofiber/fiber/v2/middleware/logger"
 	fiberRecover "github.com/gofiber/fiber/v2/middleware/recover"
-	fiberRequestID "github.com/gofiber/fiber/v2/middleware/requestid"
 
 	"github.com/joho/godotenv"
 )
@@ -29,11 +30,17 @@ func main() {
 		log.Fatal(".env file not loaded")
 	}
 
+	logger.InitLogger()
+
+	defer logger.Log.Sync()
+
+	logger.Log.Info("starting catalog service")
+
 	// Connect PostgreSQL
 
 	database.ConnectPostgres()
 
-	log.Println("✅ PostgreSQL Connected")
+	logger.Log.Info("postgres connected")
 
 	// Connect Redis
 
@@ -41,7 +48,7 @@ func main() {
 
 	redisClient.InitFiberStorage()
 
-	log.Println("✅ Redis Connected")
+	logger.Log.Info("redis connected")
 
 	// Fiber App
 
@@ -59,11 +66,9 @@ func main() {
 
 	// Request ID
 
-	app.Use(fiberRequestID.New())
+	app.Use(requestMiddleware.RequestContextMiddleware())
 
-	// Logger
-
-	app.Use(fiberLogger.New())
+	app.Use(requestMiddleware.RequestLoggerMiddleware())
 
 	// CORS
 

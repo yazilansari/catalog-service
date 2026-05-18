@@ -1,16 +1,18 @@
 package service
 
 import (
-	"log"
 	"time"
 
 	"catalog-service/internal/category/dto"
 	"catalog-service/internal/category/model"
 	"catalog-service/internal/category/repository"
+	"catalog-service/internal/logger"
 
 	redisClient "catalog-service/internal/redis"
 
 	"encoding/json"
+
+	"go.uber.org/zap"
 )
 
 func GetCategoryTree(
@@ -24,20 +26,36 @@ func GetCategoryTree(
 			":" +
 			countryCode
 
-	log.Printf(
-		"[GetCategoryTree] request tenant=%s country=%s cacheKey=%s",
-		tenantCode,
-		countryCode,
-		cacheKey,
+	logger.Log.Info(
+		"get category tree request",
+
+		zap.String(
+			"tenant_code",
+			tenantCode,
+		),
+
+		zap.String(
+			"country_code",
+			countryCode,
+		),
+
+		zap.String(
+			"cache_key",
+			cacheKey,
+		),
 	)
 
 	// =========================
 	// TRY REDIS
 	// =========================
 
-	log.Printf(
-		"[GetCategoryTree] checking redis cache key=%s",
-		cacheKey,
+	logger.Log.Info(
+		"checking redis cache",
+
+		zap.String(
+			"cache_key",
+			cacheKey,
+		),
 	)
 
 	cached, err :=
@@ -50,9 +68,13 @@ func GetCategoryTree(
 
 	if err == nil {
 
-		log.Printf(
-			"[GetCategoryTree] redis cache HIT key=%s",
-			cacheKey,
+		logger.Log.Info(
+			"redis cache hit",
+
+			zap.String(
+				"cache_key",
+				cacheKey,
+			),
 		)
 
 		var data []*dto.CategoryResponse
@@ -63,19 +85,32 @@ func GetCategoryTree(
 		)
 
 		if err == nil {
-			log.Printf(
-				"[GetCategoryTree] redis unmarshal success key=%s roots=%d",
-				cacheKey,
-				len(data),
+			logger.Log.Info(
+				"redis unmarshal success",
+
+				zap.String(
+					"cache_key",
+					cacheKey,
+				),
+
+				zap.Int(
+					"root_categories",
+					len(data),
+				),
 			)
 
 			return data, nil
 		}
 
-		log.Printf(
-			"[GetCategoryTree] redis unmarshal failed key=%s error=%v",
-			cacheKey,
-			err,
+		logger.Log.Error(
+			"redis unmarshal failed",
+
+			zap.String(
+				"cache_key",
+				cacheKey,
+			),
+
+			zap.Error(err),
 		)
 	}
 
@@ -83,10 +118,15 @@ func GetCategoryTree(
 
 	if err != nil {
 
-		log.Printf(
-			"[GetCategoryTree] redis cache MISS key=%s error=%v",
-			cacheKey,
-			err,
+		logger.Log.Warn(
+			"redis cache miss",
+
+			zap.String(
+				"cache_key",
+				cacheKey,
+			),
+
+			zap.Error(err),
 		)
 	}
 
@@ -94,25 +134,93 @@ func GetCategoryTree(
 	// DATABASE FALLBACK
 	// =========================
 
-	log.Printf(
-		"[GetCategoryTree] fetching categories from database",
+	logger.Log.Info(
+		"fetching categories from database",
+
+		zap.String(
+			"tenant_code",
+			tenantCode,
+		),
+
+		zap.String(
+			"country_code",
+			countryCode,
+		),
 	)
+
+	start := time.Now()
 
 	categories, err := repository.GetCategories(
 		tenantCode,
 		countryCode,
 	)
 
+	duration := time.Since(start)
+
 	if err != nil {
-		log.Printf("[GetCategoryTree] repository error: %v", err)
+		logger.Log.Error(
+			"failed to fetch categories from database",
+
+			zap.String(
+				"tenant_code",
+				tenantCode,
+			),
+
+			zap.String(
+				"country_code",
+				countryCode,
+			),
+
+			zap.Error(err),
+		)
 		return nil, err
 	}
 
-	log.Printf("[GetCategoryTree] categories fetched count=%d", len(categories))
+	logger.Log.Info(
+		"categories fetched from database",
+
+		zap.Int(
+			"count",
+			len(categories),
+		),
+
+		zap.Duration(
+			"query_duration",
+			duration,
+		),
+	)
+
+	// =========================
+	// SLOW QUERY DETECTION
+	// =========================
+
+	if duration > time.Second {
+
+		logger.Log.Warn(
+			"slow database query detected",
+
+			zap.Duration(
+				"duration",
+				duration,
+			),
+
+			zap.String(
+				"tenant_code",
+				tenantCode,
+			),
+		)
+	}
 
 	tree := buildCategoryTree(categories)
 
-	log.Printf("[GetCategoryTree] tree built success roots=%d", len(tree))
+	logger.Log.Info(
+		"category tree built successfully",
+
+		zap.Int(
+			"root_categories",
+			len(tree),
+		),
+	)
 
 	// =========================
 	// STORE CACHE
@@ -120,12 +228,42 @@ func GetCategoryTree(
 
 	jsonData, _ := json.Marshal(tree)
 
-	_ = redisClient.Client.Set(
+	err = redisClient.Client.Set(
 		redisClient.Ctx,
 		cacheKey,
 		jsonData,
 		time.Hour,
 	).Err()
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to store categories in redis",
+
+			zap.String(
+				"cache_key",
+				cacheKey,
+			),
+
+			zap.Error(err),
+		)
+
+	} else {
+
+		logger.Log.Info(
+			"categories cached successfully",
+
+			zap.String(
+				"cache_key",
+				cacheKey,
+			),
+
+			zap.Duration(
+				"ttl",
+				time.Hour,
+			),
+		)
+	}
 
 	return tree, nil
 }
@@ -134,7 +272,14 @@ func buildCategoryTree(
 	categories []model.Category,
 ) []*dto.CategoryResponse {
 
-	log.Printf("[buildCategoryTree] building tree from %d categories", len(categories))
+	logger.Log.Info(
+		"building category tree",
+
+		zap.Int(
+			"categories_count",
+			len(categories),
+		),
+	)
 
 	categoryMap := make(map[uint64]*dto.CategoryResponse)
 
@@ -157,7 +302,14 @@ func buildCategoryTree(
 		}
 	}
 
-	log.Printf("[buildCategoryTree] map built size=%d", len(categoryMap))
+	logger.Log.Info(
+		"category map created",
+
+		zap.Int(
+			"map_size",
+			len(categoryMap),
+		),
+	)
 
 	// Step 2: build hierarchy
 	for _, cat := range categories {
@@ -172,16 +324,47 @@ func buildCategoryTree(
 
 		parent, ok := categoryMap[*cat.ParentID]
 		if !ok {
-			log.Printf("[buildCategoryTree] missing parent id=%v for category id=%d", *cat.ParentID, cat.ID)
+			logger.Log.Warn(
+				"missing parent category",
+
+				zap.Uint64(
+					"category_id",
+					cat.ID,
+				),
+
+				zap.Uint64(
+					"parent_id",
+					*cat.ParentID,
+				),
+			)
 			continue
 		}
 
 		parent.ProductSubCategories = append(parent.ProductSubCategories, node)
 
-		log.Printf("[buildCategoryTree] attached child id=%d -> parent id=%d", node.ID, parent.ID)
+		logger.Log.Debug(
+			"child category attached",
+
+			zap.Uint64(
+				"child_id",
+				node.ID,
+			),
+
+			zap.Uint64(
+				"parent_id",
+				parent.ID,
+			),
+		)
 	}
 
-	log.Printf("[buildCategoryTree] roots=%d", len(roots))
+	logger.Log.Info(
+		"category tree completed",
+
+		zap.Int(
+			"root_categories",
+			len(roots),
+		),
+	)
 
 	return roots
 }
