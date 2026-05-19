@@ -6,10 +6,10 @@ import (
 	catalogMiddleware "catalog-service/internal/middleware"
 	redisClient "catalog-service/internal/redis"
 
-	"log"
 	"os"
 
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 
 	"catalog-service/internal/logger"
 	requestMiddleware "catalog-service/internal/middleware"
@@ -27,7 +27,7 @@ func main() {
 	err := godotenv.Load()
 
 	if err != nil {
-		log.Fatal(".env file not loaded")
+		logger.Log.Fatal(".env file not loaded")
 	}
 
 	logger.InitLogger()
@@ -112,7 +112,11 @@ func main() {
 		port = "8081"
 	}
 
-	log.Println("🚀 Catalog Service Running On Port:", port)
+	logger.Log.Info("🚀 Catalog Service Running On Port:",
+		zap.String("port", port),
+	)
 
-	log.Fatal(app.Listen(":" + port))
+	logger.Log.Fatal("server stopped",
+		zap.Error(app.Listen(":"+port)),
+	)
 }
