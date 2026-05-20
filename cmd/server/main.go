@@ -5,6 +5,7 @@ import (
 	"catalog-service/internal/database"
 	catalogMiddleware "catalog-service/internal/middleware"
 	redisClient "catalog-service/internal/redis"
+	seoRoutes "catalog-service/internal/seo/routes"
 
 	"os"
 
@@ -101,6 +102,8 @@ func main() {
 	// =========================
 
 	categoryRoutes.SetupCategoryRoutes(api)
+
+	seoRoutes.SetupSEORoutes(api)
 
 	// =========================
 	// Start Server
