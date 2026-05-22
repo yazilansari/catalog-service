@@ -2,15 +2,17 @@ package handler
 
 import (
 	"catalog-service/internal/logger"
-	"catalog-service/internal/seo/service"
+	"catalog-service/internal/page/service"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
 )
 
-func GetSEOPage(
+func GetCategoryPage(
 	c *fiber.Ctx,
 ) error {
+
+	slug := c.Params("slug")
 
 	tenantCode :=
 		c.Locals("tenant_code").(string)
@@ -20,12 +22,6 @@ func GetSEOPage(
 
 	requestID, _ :=
 		c.Locals("request_id").(string)
-
-	entityType :=
-		c.Params("entity")
-
-	slug :=
-		c.Params("slug")
 
 	logger.Log.Info(
 		"get seo request received",
@@ -56,20 +52,14 @@ func GetSEOPage(
 		),
 
 		zap.String(
-			"entity_type",
-			entityType,
-		),
-
-		zap.String(
 			"slug",
 			slug,
 		),
 	)
 
-	data, err := service.GetSEOPage(
+	data, err := service.GetCategoryPage(
 		tenantCode,
 		countryCode,
-		entityType,
 		slug,
 	)
 
@@ -94,11 +84,6 @@ func GetSEOPage(
 			),
 
 			zap.String(
-				"entity_type",
-				entityType,
-			),
-
-			zap.String(
 				"slug",
 				slug,
 			),
@@ -106,15 +91,15 @@ func GetSEOPage(
 			zap.Error(err),
 		)
 
-		return c.Status(500).JSON(
+		return c.Status(404).JSON(
 			fiber.Map{
-				"message": "seo not found",
+				"message": "category not found",
 			},
 		)
 	}
 
 	logger.Log.Info(
-		"seo fetched successfully",
+		"category fetched successfully",
 
 		zap.String(
 			"request_id",
@@ -129,11 +114,6 @@ func GetSEOPage(
 		zap.String(
 			"country_code",
 			countryCode,
-		),
-
-		zap.String(
-			"entity_type",
-			entityType,
 		),
 
 		zap.String(
