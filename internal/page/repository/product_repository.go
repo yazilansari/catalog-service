@@ -1,0 +1,320 @@
+package repository
+
+import (
+	"time"
+
+	"catalog-service/internal/database"
+	"catalog-service/internal/logger"
+	"catalog-service/internal/page/model"
+
+	"go.uber.org/zap"
+)
+
+func FindProductBySlug(
+	tenantCode string,
+	countryCode string,
+	slug string,
+) (*model.Product, error) {
+
+	logger.Log.Info(
+		"find product by slug",
+
+		zap.String(
+			"tenant_code",
+			tenantCode,
+		),
+
+		zap.String(
+			"country_code",
+			countryCode,
+		),
+
+		zap.String(
+			"slug",
+			slug,
+		),
+	)
+
+	var product model.Product
+
+	start := time.Now()
+
+	query := database.DB.
+		// Debug().
+		Table("products").
+		Where("tenant_code = ?", tenantCode).
+		Where("country_code = ?", countryCode).
+		Where("slug = ?", slug).
+		Where("status = ?", "published")
+
+	err := query.First(&product).Error
+
+	duration := time.Since(start)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch product repository",
+
+			zap.String(
+				"slug",
+				slug,
+			),
+
+			zap.Duration(
+				"duration",
+				duration,
+			),
+
+			zap.Error(err),
+		)
+
+		return nil, err
+	}
+
+	logger.Log.Info(
+		"product fetched successfully",
+
+		zap.Uint64(
+			"product_id",
+			product.ID,
+		),
+
+		zap.Duration(
+			"duration",
+			duration,
+		),
+	)
+
+	return &product, nil
+}
+
+func GetCategoryByProductID(
+	productID uint64,
+) (*model.Category, error) {
+
+	logger.Log.Info(
+		"fetching category by product id",
+
+		zap.Uint64(
+			"product_id",
+			productID,
+		),
+	)
+
+	var category model.Category
+
+	query := database.DB.
+		Table("categories c").
+		Select("c.*").
+		Joins(
+			"INNER JOIN product_categories pc ON pc.category_id = c.id",
+		).
+		Where(
+			"pc.product_id = ?",
+			productID,
+		).
+		Where(
+			"c.parent_id = 0",
+		).
+		Limit(1)
+
+	start := time.Now()
+
+	err := query.First(&category).Error
+
+	duration := time.Since(start)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch category",
+
+			zap.Uint64(
+				"product_id",
+				productID,
+			),
+
+			zap.Error(err),
+		)
+
+		return nil, err
+	}
+
+	logger.Log.Info(
+		"category fetched successfully",
+
+		zap.Uint64(
+			"category_id",
+			category.ID,
+		),
+
+		zap.Duration(
+			"duration",
+			duration,
+		),
+	)
+
+	return &category, nil
+}
+
+func GetSubCategoryByID(
+	productID uint64,
+) (*model.Category, error) {
+
+	logger.Log.Info(
+		"fetching subcategory",
+
+		zap.Uint64(
+			"product_id",
+			productID,
+		),
+	)
+
+	var category model.Category
+
+	start := time.Now()
+
+	query := database.DB.
+		Table("categories c").
+		Select("c.*").
+		Joins(
+			"INNER JOIN product_categories pc ON pc.category_id = c.id",
+		).
+		Where(
+			"pc.product_id = ?",
+			productID,
+		).
+		Where(
+			"c.parent_id != 0",
+		).
+		Limit(1)
+
+	err := query.First(&category).Error
+
+	duration := time.Since(start)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch subcategory",
+
+			zap.Uint64(
+				"product_id",
+				productID,
+			),
+
+			zap.Duration(
+				"duration",
+				duration,
+			),
+
+			zap.Error(err),
+		)
+
+		return nil, err
+	}
+
+	logger.Log.Info(
+		"subcategory fetched successfully",
+
+		zap.Uint64(
+			"subcategory_id",
+			category.ID,
+		),
+
+		zap.Duration(
+			"duration",
+			duration,
+		),
+	)
+
+	return &category, nil
+}
+
+func GetRelatedProducts(
+	subCategoryID uint64,
+	productID uint64,
+) ([]model.Product, error) {
+
+	logger.Log.Info(
+		"fetching related products",
+
+		zap.Uint64(
+			"category_id",
+			subCategoryID,
+		),
+
+		zap.Uint64(
+			"product_id",
+			productID,
+		),
+	)
+
+	var products []model.Product
+
+	start := time.Now()
+
+	query := database.DB.
+		Table("products p").
+		Select("DISTINCT p.*").
+		Joins(`
+			INNER JOIN product_categories pc
+			ON pc.product_id = p.id
+		`).
+		Where(
+			"pc.category_id = ?",
+			subCategoryID,
+		).
+		Where(
+			"p.id != ?",
+			productID,
+		).
+		Where(
+			"p.status = ?",
+			"published",
+		).
+		Order("p.id DESC").
+		Limit(10)
+
+	err := query.Find(&products).Error
+
+	duration := time.Since(start)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch related products",
+
+			zap.Uint64(
+				"product_id",
+				productID,
+			),
+
+			zap.Duration(
+				"duration",
+				duration,
+			),
+
+			zap.Error(err),
+		)
+
+		return nil, err
+	}
+
+	logger.Log.Info(
+		"related products fetched successfully",
+
+		zap.Int(
+			"count",
+			len(products),
+		),
+
+		zap.Duration(
+			"duration",
+			duration,
+		),
+	)
+
+	return products, nil
+}

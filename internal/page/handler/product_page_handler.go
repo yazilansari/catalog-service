@@ -1,9 +1,11 @@
 package handler
 
 import (
+	"catalog-service/internal/logger"
 	"catalog-service/internal/page/service"
 
 	"github.com/gofiber/fiber/v2"
+	"go.uber.org/zap"
 )
 
 func GetProductPage(
@@ -18,6 +20,43 @@ func GetProductPage(
 	countryCode :=
 		c.Locals("country_code").(string)
 
+	requestID, _ :=
+		c.Locals("request_id").(string)
+
+	logger.Log.Info(
+		"get product page request received",
+
+		zap.String(
+			"request_id",
+			requestID,
+		),
+
+		zap.String(
+			"tenant_code",
+			tenantCode,
+		),
+
+		zap.String(
+			"country_code",
+			countryCode,
+		),
+
+		zap.String(
+			"path",
+			c.OriginalURL(),
+		),
+
+		zap.String(
+			"method",
+			c.Method(),
+		),
+
+		zap.String(
+			"slug",
+			slug,
+		),
+	)
+
 	data, err := service.GetProductPage(
 		tenantCode,
 		countryCode,
@@ -26,12 +65,62 @@ func GetProductPage(
 
 	if err != nil {
 
+		logger.Log.Error(
+			"failed to fetch product page",
+
+			zap.String(
+				"request_id",
+				requestID,
+			),
+
+			zap.String(
+				"tenant_code",
+				tenantCode,
+			),
+
+			zap.String(
+				"country_code",
+				countryCode,
+			),
+
+			zap.String(
+				"slug",
+				slug,
+			),
+
+			zap.Error(err),
+		)
+
 		return c.Status(404).JSON(
 			fiber.Map{
-				"message": "product not found",
+				"message": "product page not found",
 			},
 		)
 	}
+
+	logger.Log.Info(
+		"product page fetched successfully",
+
+		zap.String(
+			"request_id",
+			requestID,
+		),
+
+		zap.String(
+			"tenant_code",
+			tenantCode,
+		),
+
+		zap.String(
+			"country_code",
+			countryCode,
+		),
+
+		zap.String(
+			"slug",
+			slug,
+		),
+	)
 
 	return c.JSON(data)
 }

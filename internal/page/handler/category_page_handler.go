@@ -24,7 +24,7 @@ func GetCategoryPage(
 		c.Locals("request_id").(string)
 
 	logger.Log.Info(
-		"get seo request received",
+		"get category page request received",
 
 		zap.String(
 			"request_id",
@@ -66,7 +66,7 @@ func GetCategoryPage(
 	if err != nil {
 
 		logger.Log.Error(
-			"failed to fetch seo",
+			"failed to fetch category page",
 
 			zap.String(
 				"request_id",
@@ -93,13 +93,13 @@ func GetCategoryPage(
 
 		return c.Status(404).JSON(
 			fiber.Map{
-				"message": "category not found",
+				"message": "category page not found",
 			},
 		)
 	}
 
 	logger.Log.Info(
-		"category fetched successfully",
+		"category page fetched successfully",
 
 		zap.String(
 			"request_id",

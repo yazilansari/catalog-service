@@ -166,6 +166,8 @@ func GetCategoryPage(
 		slug,
 	)
 
+	categoryPageDuration := time.Since(start)
+
 	if err != nil {
 
 		logger.Log.Error(
@@ -179,6 +181,11 @@ func GetCategoryPage(
 			),
 			zap.String("slug", slug),
 
+			zap.Duration(
+				"category_page_duration",
+				categoryPageDuration,
+			),
+
 			zap.Error(err),
 		)
 
@@ -188,6 +195,8 @@ func GetCategoryPage(
 	subCategories, err := repository.GetSubCategories(
 		category.ID,
 	)
+
+	subCategoryPageDuration := time.Since(start)
 
 	if err != nil {
 		logger.Log.Error(
@@ -213,6 +222,11 @@ func GetCategoryPage(
 				slug,
 			),
 
+			zap.Duration(
+				"sub_category_page_duration",
+				subCategoryPageDuration,
+			),
+
 			zap.Error(err),
 		)
 		return nil, err
@@ -221,6 +235,8 @@ func GetCategoryPage(
 	products, err := repository.GetProductsByCategory(
 		category.ID,
 	)
+
+	productPageDuration := time.Since(start)
 
 	if err != nil {
 		logger.Log.Error(
@@ -244,6 +260,11 @@ func GetCategoryPage(
 			zap.String(
 				"slug",
 				slug,
+			),
+
+			zap.Duration(
+				"product_page_duration",
+				productPageDuration,
 			),
 
 			zap.Error(err),
