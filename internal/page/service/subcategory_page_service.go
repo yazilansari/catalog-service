@@ -15,6 +15,12 @@ func GetSubCategoryPage(
 	tenantCode string,
 	countryCode string,
 	slug string,
+	page int,
+	limit int,
+	sort string,
+	brand string,
+	priceMin float64,
+	priceMax float64,
 ) (interface{}, error) {
 
 	cacheKey :=
@@ -223,9 +229,15 @@ func GetSubCategoryPage(
 		return nil, err
 	}
 
-	products, err :=
+	products, total, err :=
 		repository.GetProductsBySubCategory(
 			subCategory.ID,
+			page,
+			limit,
+			sort,
+			brand,
+			priceMin,
+			priceMax,
 		)
 
 	productPageDuration := time.Since(start)
@@ -246,6 +258,11 @@ func GetSubCategoryPage(
 			zap.Duration(
 				"product_page_duration",
 				productPageDuration,
+			),
+
+			zap.Int64(
+				"total",
+				total,
 			),
 
 			zap.Error(err),

@@ -154,7 +154,13 @@ func GetCategoryByID(
 
 func GetProductsBySubCategory(
 	subCategoryID uint64,
-) ([]model.Product, error) {
+	page int,
+	limit int,
+	sort string,
+	brand string,
+	priceMin float64,
+	priceMax float64,
+) ([]model.Product, int64, error) {
 
 	logger.Log.Info(
 		"fetching subcategory products",
@@ -163,15 +169,34 @@ func GetProductsBySubCategory(
 			"subcategory_id",
 			subCategoryID,
 		),
+
+		zap.Int(
+			"page",
+			page,
+		),
+
+		zap.Int(
+			"limit",
+			limit,
+		),
+
+		zap.String(
+			"sort",
+			sort,
+		),
 	)
 
 	var products []model.Product
+
+	var total int64
+
+	offset := (page - 1) * limit
 
 	start := time.Now()
 
 	query := database.DB.
 		Table("products p").
-		Select("p.*").
+		Select("DISTINCT p.*").
 		Joins(`
 			INNER JOIN product_categories pc
 			ON pc.product_id = p.id
@@ -183,11 +208,79 @@ func GetProductsBySubCategory(
 		Where(
 			"p.status = ?",
 			"published",
-		).
-		Order("p.id DESC").
-		Limit(20)
+		)
 
-	err := query.Find(&products).Error
+	// =========================
+	// FILTERS
+	// =========================
+
+	if brand != "" {
+
+		query = query.Where(
+			"LOWER(p.brand) = LOWER(?)",
+			brand,
+		)
+	}
+
+	if priceMin > 0 {
+
+		query = query.Where(
+			"p.price >= ?",
+			priceMin,
+		)
+	}
+
+	if priceMax > 0 {
+
+		query = query.Where(
+			"p.price <= ?",
+			priceMax,
+		)
+	}
+
+	// =========================
+	// TOTAL COUNT
+	// =========================
+
+	err := query.Count(&total).Error
+	if err != nil {
+		return nil, 0, err
+	}
+
+	// =========================
+	// SORTING
+	// =========================
+
+	switch sort {
+
+	case "price_asc":
+		query = query.Order("p.price ASC")
+
+	case "price_desc":
+		query = query.Order("p.price DESC")
+
+	case "oldest":
+		query = query.Order("p.id ASC")
+
+	case "name_asc":
+		query = query.Order("p.name ASC")
+
+	case "name_desc":
+		query = query.Order("p.name DESC")
+
+	default:
+		query = query.Order("p.id DESC")
+	}
+
+	// =========================
+	// PAGINATION
+	// =========================
+
+	query = query.
+		Offset(offset).
+		Limit(limit)
+
+	err = query.Find(&products).Error
 
 	duration := time.Since(start)
 
@@ -209,7 +302,7 @@ func GetProductsBySubCategory(
 			zap.Error(err),
 		)
 
-		return nil, err
+		return nil, 0, err
 	}
 
 	logger.Log.Info(
@@ -231,5 +324,5 @@ func GetProductsBySubCategory(
 		),
 	)
 
-	return products, nil
+	return products, total, nil
 }

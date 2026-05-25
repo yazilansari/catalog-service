@@ -15,6 +15,12 @@ func GetProductPage(
 	tenantCode string,
 	countryCode string,
 	slug string,
+	page int,
+	limit int,
+	sort string,
+	brand string,
+	priceMin float64,
+	priceMax float64,
 ) (interface{}, error) {
 
 	cacheKey :=
@@ -254,10 +260,16 @@ func GetProductPage(
 		return nil, err
 	}
 
-	relatedProducts, err :=
+	relatedProducts, total, err :=
 		repository.GetRelatedProducts(
 			subCategory.ID,
 			product.ID,
+			page,
+			limit,
+			sort,
+			brand,
+			priceMin,
+			priceMax,
 		)
 
 	relatedProductsDuration := time.Since(start)
@@ -276,6 +288,11 @@ func GetProductPage(
 				"products",
 			),
 			zap.String("slug", slug),
+
+			zap.Int64(
+				"total",
+				total,
+			),
 
 			zap.Duration(
 				"related_products_duration",

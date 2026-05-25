@@ -3,6 +3,7 @@ package handler
 import (
 	"catalog-service/internal/logger"
 	"catalog-service/internal/page/service"
+	"strconv"
 
 	"github.com/gofiber/fiber/v2"
 	"go.uber.org/zap"
@@ -22,6 +23,31 @@ func GetProductPage(
 
 	requestID, _ :=
 		c.Locals("request_id").(string)
+
+	page, _ := strconv.Atoi(
+		c.Query("page", "1"),
+	)
+
+	limit, _ := strconv.Atoi(
+		c.Query("limit", "20"),
+	)
+
+	sort := c.Query(
+		"sort",
+		"newest",
+	)
+
+	brand := c.Query("brand")
+
+	priceMin, _ := strconv.ParseFloat(
+		c.Query("price_min", "0"),
+		64,
+	)
+
+	priceMax, _ := strconv.ParseFloat(
+		c.Query("price_max", "0"),
+		64,
+	)
 
 	logger.Log.Info(
 		"get product page request received",
@@ -55,12 +81,48 @@ func GetProductPage(
 			"slug",
 			slug,
 		),
+
+		zap.Int(
+			"page",
+			page,
+		),
+
+		zap.Int(
+			"limit",
+			limit,
+		),
+
+		zap.String(
+			"sort",
+			sort,
+		),
+
+		zap.String(
+			"brand",
+			brand,
+		),
+
+		zap.Float64(
+			"price_min",
+			priceMin,
+		),
+
+		zap.Float64(
+			"price_max",
+			priceMax,
+		),
 	)
 
 	data, err := service.GetProductPage(
 		tenantCode,
 		countryCode,
 		slug,
+		page,
+		limit,
+		sort,
+		brand,
+		priceMin,
+		priceMax,
 	)
 
 	if err != nil {
