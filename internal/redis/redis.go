@@ -28,7 +28,7 @@ func ConnectRedis() {
 	if err != nil {
 
 		logger.Log.Warn(
-			"invalid redis db value, defaulting to 3",
+			"invalid redis db value, defaulting to 0",
 
 			zap.String(
 				"redis_db",

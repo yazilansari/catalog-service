@@ -5,6 +5,8 @@ import (
 	"catalog-service/internal/database"
 	catalogMiddleware "catalog-service/internal/middleware"
 	pageRoutes "catalog-service/internal/page/routes"
+	plpRoutes "catalog-service/internal/plp/routes"
+	productRoutes "catalog-service/internal/product/routes"
 	redisClient "catalog-service/internal/redis"
 	seoRoutes "catalog-service/internal/seo/routes"
 
@@ -18,6 +20,8 @@ import (
 
 	fiberCors "github.com/gofiber/fiber/v2/middleware/cors"
 	fiberRecover "github.com/gofiber/fiber/v2/middleware/recover"
+
+	es "catalog-service/internal/elasticsearch"
 
 	"github.com/joho/godotenv"
 )
@@ -51,6 +55,20 @@ func main() {
 	redisClient.InitFiberStorage()
 
 	logger.Log.Info("redis connected")
+
+	es.InitElasticSearch()
+
+	logger.Log.Info("Elasticsearch connected")
+
+	elasticIndexErr :=
+		es.CreateProductIndex()
+
+	if elasticIndexErr != nil {
+
+		logger.Log.Error(
+			"failed to create elastic index",
+		)
+	}
 
 	// Fiber App
 
@@ -107,6 +125,10 @@ func main() {
 	seoRoutes.SetupSEORoutes(api)
 
 	pageRoutes.SetupPageRoutes(api)
+
+	productRoutes.SetupProductRoutes(api)
+
+	plpRoutes.SetupPLPRoutes(api)
 
 	// =========================
 	// Start Server
