@@ -60,15 +60,15 @@ func main() {
 
 	logger.Log.Info("Elasticsearch connected")
 
-	elasticIndexErr :=
-		es.CreateProductIndex()
+	// elasticIndexErr :=
+	// 	es.CreateProductIndex()
 
-	if elasticIndexErr != nil {
+	// if elasticIndexErr != nil {
 
-		logger.Log.Error(
-			"failed to create elastic index",
-		)
-	}
+	// 	logger.Log.Error(
+	// 		"failed to create elastic index",
+	// 	)
+	// }
 
 	// Fiber App
 

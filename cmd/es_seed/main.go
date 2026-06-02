@@ -11,16 +11,27 @@ import (
 	"strings"
 
 	esutil "github.com/elastic/go-elasticsearch/v8/esutil"
+	"github.com/joho/godotenv"
 	"go.uber.org/zap"
 )
 
 func main() {
+
+	// Load ENV
+
+	err := godotenv.Load()
+
+	if err != nil {
+		logger.Log.Fatal(".env file not loaded")
+	}
 
 	// =========================
 	// INIT
 	// =========================
 
 	logger.InitLogger()
+
+	defer logger.Log.Sync()
 
 	database.ConnectPostgres()
 
@@ -29,6 +40,67 @@ func main() {
 	elasticsearch.InitElasticSearch()
 
 	logger.Log.Info("elasticsearch connected")
+
+	// =========================
+	// TENANT / COUNTRY
+	// =========================
+
+	tenantCode := "AE"
+
+	countryCode := "AE"
+
+	indexName :=
+		elasticsearch.GetProductIndex(
+			tenantCode,
+			countryCode,
+		)
+
+	logger.Log.Info(
+		"starting elasticsearch seed",
+
+		zap.String(
+			"tenant_code",
+			tenantCode,
+		),
+
+		zap.String(
+			"country_code",
+			countryCode,
+		),
+
+		zap.String(
+			"index_name",
+			indexName,
+		),
+	)
+
+	// =========================
+	// CREATE INDEX
+	// =========================
+
+	err =
+		elasticsearch.CreateProductIndex(
+			tenantCode,
+			countryCode,
+		)
+
+	if err != nil {
+
+		logger.Log.Fatal(
+			"failed to create index",
+
+			zap.Error(err),
+		)
+	}
+
+	logger.Log.Info(
+		"index ready",
+
+		zap.String(
+			"index_name",
+			indexName,
+		),
+	)
 
 	logger.Log.Info(
 		"starting elasticsearch seed...",
@@ -40,7 +112,10 @@ func main() {
 
 	products,
 		err :=
-		repository.GetProductsForElastic()
+		repository.GetProductsForElastic(
+			tenantCode,
+			countryCode,
+		)
 
 	if err != nil {
 
@@ -64,7 +139,7 @@ func main() {
 			esutil.BulkIndexerConfig{
 				Client: elasticsearch.Client,
 
-				Index: "products",
+				Index: indexName,
 
 				NumWorkers: 4,
 
@@ -96,7 +171,13 @@ func main() {
 
 				"price": product.Price,
 
-				"discount_price": product.SalePrice,
+				"category": product.Category,
+
+				"subcategory": product.SubCategory,
+
+				"brand": product.Brand,
+
+				"discount_price": product.DiscountPrice,
 
 				"status": product.Status,
 
@@ -105,10 +186,26 @@ func main() {
 				"sales_count": 0,
 			}
 
-		body, _ :=
+		body, err :=
 			json.Marshal(
 				document,
 			)
+
+		if err != nil {
+
+			logger.Log.Error(
+				"failed to marshal product",
+
+				zap.Uint64(
+					"product_id",
+					product.ID,
+				),
+
+				zap.Error(err),
+			)
+
+			continue
+		}
 
 		err =
 			indexer.Add(
@@ -126,6 +223,22 @@ func main() {
 						string(body),
 					),
 
+					OnSuccess: func(
+						ctx context.Context,
+						item esutil.BulkIndexerItem,
+						resp esutil.BulkIndexerResponseItem,
+					) {
+
+						logger.Log.Debug(
+							"product indexed",
+
+							zap.String(
+								"document_id",
+								item.DocumentID,
+							),
+						)
+					},
+
 					OnFailure: func(
 						ctx context.Context,
 						item esutil.BulkIndexerItem,
@@ -133,14 +246,16 @@ func main() {
 						err error,
 					) {
 
-						fmt.Println(
-							"failed:",
-							item.DocumentID,
-						)
+						logger.Log.Error(
+							"failed to index product",
 
-						if err != nil {
-							fmt.Println(err)
-						}
+							zap.String(
+								"document_id",
+								item.DocumentID,
+							),
+
+							zap.Error(err),
+						)
 					},
 				},
 			)
@@ -149,13 +264,19 @@ func main() {
 
 			logger.Log.Error(
 				"failed to add product to bulk indexer",
+
+				zap.Uint64(
+					"product_id",
+					product.ID,
+				),
+
+				zap.Error(err),
 			)
-			panic(err)
 		}
 	}
 
 	// =========================
-	// CLOSE
+	// CLOSE INDEXER
 	// =========================
 
 	err =
@@ -165,17 +286,27 @@ func main() {
 
 	if err != nil {
 
-		logger.Log.Error(
+		logger.Log.Fatal(
 			"failed to close bulk indexer",
+
+			zap.Error(err),
 		)
-		panic(err)
 	}
 
 	stats :=
 		indexer.Stats()
 
 	logger.Log.Info(
-		"indexed:",
-		zap.Uint64("count", stats.NumIndexed),
+		"elasticsearch seed completed",
+
+		zap.Uint64(
+			"indexed_count",
+			stats.NumIndexed,
+		),
+
+		zap.Uint64(
+			"failed_count",
+			stats.NumFailed,
+		),
 	)
 }

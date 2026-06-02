@@ -3,19 +3,35 @@ package repository
 import (
 	"bytes"
 	"catalog-service/internal/elasticsearch"
+	"catalog-service/internal/logger"
 	"catalog-service/internal/plp/dto"
 	"context"
 	"encoding/json"
+
+	"go.uber.org/zap"
 )
 
 func SearchProducts(
 	query dto.ProductQuery,
+	tenantCode string,
+	countryCode string,
 ) (
 	[]map[string]interface{},
 	map[string]interface{},
 	int64,
 	error,
 ) {
+
+	indexName :=
+		elasticsearch.GetProductIndex(
+			tenantCode,
+			countryCode,
+		)
+
+	logger.Log.Debug(
+		"index name",
+		zap.String("indexName", indexName),
+	)
 
 	filter :=
 		[]map[string]interface{}{}
@@ -26,13 +42,17 @@ func SearchProducts(
 
 	if query.Category != "" {
 
+		logger.Log.Debug(
+			"category query",
+		)
+
 		filter =
 			append(
 				filter,
 
 				map[string]interface{}{
 					"term": map[string]interface{}{
-						"category.keyword": query.Category,
+						"category": query.Category,
 					},
 				},
 			)
@@ -44,13 +64,17 @@ func SearchProducts(
 
 	if query.SubCategory != "" {
 
+		logger.Log.Debug(
+			"subcategory query",
+		)
+
 		filter =
 			append(
 				filter,
 
 				map[string]interface{}{
 					"term": map[string]interface{}{
-						"subcategory.keyword": query.SubCategory,
+						"subcategory": query.SubCategory,
 					},
 				},
 			)
@@ -62,13 +86,17 @@ func SearchProducts(
 
 	if query.Brand != "" {
 
+		logger.Log.Debug(
+			"brand query",
+		)
+
 		filter =
 			append(
 				filter,
 
 				map[string]interface{}{
 					"term": map[string]interface{}{
-						"brand.keyword": query.Brand,
+						"brand": query.Brand,
 					},
 				},
 			)
@@ -81,21 +109,41 @@ func SearchProducts(
 	if query.MinPrice > 0 ||
 		query.MaxPrice > 0 {
 
+		logger.Log.Debug(
+			"price range query",
+		)
+
+		priceRange :=
+			map[string]interface{}{}
+
+		if query.MinPrice > 0 {
+
+			priceRange["gte"] =
+				query.MinPrice
+		}
+
+		if query.MaxPrice > 0 {
+
+			priceRange["lte"] =
+				query.MaxPrice
+		}
+
 		filter =
 			append(
 				filter,
 
 				map[string]interface{}{
 					"range": map[string]interface{}{
-						"price": map[string]interface{}{
-							"gte": query.MinPrice,
-
-							"lte": query.MaxPrice,
-						},
+						"price": priceRange,
 					},
 				},
 			)
 	}
+
+	logger.Log.Debug(
+		"filter",
+		zap.Any("filter", filter),
+	)
 
 	// =========================
 	// SORT
@@ -121,7 +169,7 @@ func SearchProducts(
 			"aggs": map[string]interface{}{
 				"brands": map[string]interface{}{
 					"terms": map[string]interface{}{
-						"field": "brand.keyword",
+						"field": "brand",
 
 						"size": 100,
 					},
@@ -147,16 +195,36 @@ func SearchProducts(
 
 	if query.Cursor != "" {
 
+		logger.Log.Debug(
+			"cursor pagination",
+		)
+
 		searchQuery["search_after"] =
 			[]interface{}{
 				query.Cursor,
 			}
 	}
 
-	body, _ :=
+	logger.Log.Debug(
+		"search query",
+		zap.Any("searchQuery", searchQuery),
+	)
+
+	body, err :=
 		json.Marshal(
 			searchQuery,
 		)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to marshal search query",
+
+			zap.Error(err),
+		)
+
+		return nil, nil, 0, err
+	}
 
 	res, err :=
 		elasticsearch.Client.Search(
@@ -165,7 +233,7 @@ func SearchProducts(
 			),
 
 			elasticsearch.Client.Search.WithIndex(
-				"products",
+				indexName,
 			),
 
 			elasticsearch.Client.Search.WithBody(
@@ -173,7 +241,28 @@ func SearchProducts(
 			),
 		)
 
+	if res.IsError() {
+
+		logger.Log.Error(
+			"elasticsearch search failed",
+
+			zap.String(
+				"status",
+				res.Status(),
+			),
+		)
+
+		return nil, nil, 0, err
+	}
+
 	if err != nil {
+
+		logger.Log.Error(
+			"failed to search products",
+
+			zap.Error(err),
+		)
+
 		return nil, nil, 0, err
 	}
 
@@ -181,39 +270,118 @@ func SearchProducts(
 
 	var result map[string]interface{}
 
-	_ = json.NewDecoder(
+	err = json.NewDecoder(
 		res.Body,
 	).Decode(
 		&result,
 	)
 
-	hits :=
-		result["hits"].(map[string]interface{})
+	if err != nil {
 
-	total :=
-		int64(
-			hits["total"].(map[string]interface{})["value"].(float64),
+		logger.Log.Error(
+			"failed to decode search response",
+
+			zap.Error(err),
 		)
 
-	rows :=
-		hits["hits"].([]interface{})
+		return nil, nil, 0, err
+	}
+
+	// =========================
+	// HITS
+	// =========================
+
+	hitsMap, ok :=
+		result["hits"].(map[string]interface{})
+
+	if !ok {
+
+		logger.Log.Error(
+			"failed to get hits from search response",
+		)
+
+		return []map[string]interface{}{},
+			nil,
+			0,
+			nil
+	}
+
+	total := int64(0)
+
+	if totalMap, ok :=
+		hitsMap["total"].(map[string]interface{}); ok {
+
+		if value, ok :=
+			totalMap["value"].(float64); ok {
+
+			total =
+				int64(value)
+		}
+	}
+
+	rows, ok :=
+		hitsMap["hits"].([]interface{})
+
+	if !ok {
+
+		logger.Log.Error(
+			"failed to get hits from search response",
+		)
+
+		return []map[string]interface{}{},
+			nil,
+			total,
+			nil
+	}
 
 	var products []map[string]interface{}
 
 	for _, row := range rows {
 
-		source :=
-			row.(map[string]interface{})["_source"]
+		rowMap, ok :=
+			row.(map[string]interface{})
+
+		if !ok {
+			continue
+		}
+
+		source, ok :=
+			rowMap["_source"].(map[string]interface{})
+
+		if !ok {
+			continue
+		}
+
+		// attach cursor
+
+		if sortValues, ok :=
+			rowMap["sort"].([]interface{}); ok &&
+			len(sortValues) > 0 {
+
+			source["cursor"] =
+				sortValues[0]
+		}
 
 		products =
 			append(
 				products,
-				source.(map[string]interface{}),
+				source,
 			)
 	}
 
+	// =========================
+	// AGGREGATIONS
+	// =========================
+
 	aggs :=
-		result["aggregations"].(map[string]interface{})
+		map[string]interface{}{}
+
+	if aggregations, ok :=
+		result["aggregations"].(map[string]interface{}); ok {
+
+		aggs =
+			aggregations
+	}
 
 	return products,
 		aggs,
@@ -252,6 +420,11 @@ func buildSort(
 		return []map[string]interface{}{
 			{
 				"sales_count": map[string]interface{}{
+					"order": "desc",
+				},
+			},
+			{
+				"id": map[string]interface{}{
 					"order": "desc",
 				},
 			},

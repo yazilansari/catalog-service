@@ -15,6 +15,8 @@ import (
 
 func GetProducts(
 	query dto.ProductQuery,
+	tenantCode string,
+	countryCode string,
 ) (*dto.ProductListResponse, error) {
 
 	// =========================
@@ -33,16 +35,11 @@ func GetProducts(
 	// CACHE KEY
 	// =========================
 
-	cacheKey :=
-		"plp:" +
-			query.Category + ":" +
-			query.SubCategory + ":" +
-			query.Brand + ":" +
-			query.Sort + ":" +
-			strconv.Itoa(
-				query.Limit,
-			) + ":" +
-			query.Cursor
+	cacheKey := buildCacheKey(
+		query,
+		tenantCode,
+		countryCode,
+	)
 
 	logger.Log.Info(
 		"get products request",
@@ -105,7 +102,28 @@ func GetProducts(
 		err :=
 		repository.SearchProducts(
 			query,
+			tenantCode,
+			countryCode,
 		)
+
+	logger.Log.Info(
+		"search result",
+
+		zap.Int(
+			"rows",
+			len(rows),
+		),
+
+		zap.Bool(
+			"aggs_nil",
+			aggs == nil,
+		),
+
+		zap.Int64(
+			"total",
+			total,
+		),
+	)
 
 	duration :=
 		time.Since(start)
@@ -166,21 +184,26 @@ func GetProducts(
 	// PAGINATION
 	// =========================
 
-	hasMore :=
-		len(products) >= query.Limit
+	hasMore := false
 
 	nextCursor := ""
 
-	if hasMore {
+	if len(products) > 0 {
 
-		last :=
-			products[len(products)-1]
+		hasMore =
+			len(products) >= query.Limit
 
-		nextCursor =
-			strconv.FormatUint(
-				last.ID,
-				10,
-			)
+		if hasMore {
+
+			last :=
+				products[len(products)-1]
+
+			nextCursor =
+				strconv.FormatUint(
+					last.ID,
+					10,
+				)
+		}
 	}
 
 	// =========================
@@ -189,58 +212,76 @@ func GetProducts(
 
 	var brands []string
 
-	brandsAgg, ok :=
-		aggs["brands"].(map[string]interface{})
-
-	if ok {
-
-		buckets, ok :=
-			brandsAgg["buckets"].([]interface{})
-
-		if ok {
-
-			for _, bucket := range buckets {
-
-				brand :=
-					bucket.(map[string]interface{})["key"]
-
-				brands =
-					append(
-						brands,
-						brand.(string),
-					)
-			}
-		}
-	}
-
 	var minPrice float64
 	var maxPrice float64
 
-	// =========================
-	// MIN PRICE
-	// =========================
+	if aggs != nil {
 
-	if value, ok :=
-		aggs["min_price"].(map[string]interface{})["value"]; ok && value != nil {
+		// =========================
+		// BRANDS
+		// =========================
 
-		minPrice =
-			value.(float64)
+		if brandsAgg, ok :=
+			aggs["brands"].(map[string]interface{}); ok {
+
+			if buckets, ok :=
+				brandsAgg["buckets"].([]interface{}); ok {
+
+				for _, bucket := range buckets {
+
+					bucketMap, ok :=
+						bucket.(map[string]interface{})
+
+					if !ok {
+						continue
+					}
+
+					key, ok :=
+						bucketMap["key"].(string)
+
+					if !ok {
+						continue
+					}
+
+					brands =
+						append(
+							brands,
+							key,
+						)
+				}
+			}
+		}
+
+		// =========================
+		// MIN PRICE
+		// =========================
+
+		if minAgg, ok :=
+			aggs["min_price"].(map[string]interface{}); ok {
+
+			if value, ok :=
+				minAgg["value"].(float64); ok {
+
+				minPrice =
+					value
+			}
+		}
+
+		// =========================
+		// MAX PRICE
+		// =========================
+
+		if maxAgg, ok :=
+			aggs["max_price"].(map[string]interface{}); ok {
+
+			if value, ok :=
+				maxAgg["value"].(float64); ok {
+
+				maxPrice =
+					value
+			}
+		}
 	}
-
-	// =========================
-	// MAX PRICE
-	// =========================
-
-	if value, ok :=
-		aggs["max_price"].(map[string]interface{})["value"]; ok && value != nil {
-
-		maxPrice =
-			value.(float64)
-	}
-
-	// =========================
-	// FILTERS
-	// =========================
 
 	filters :=
 		dto.FilterResponse{
@@ -248,7 +289,6 @@ func GetProducts(
 
 			PriceRange: dto.PriceRange{
 				Min: minPrice,
-
 				Max: maxPrice,
 			},
 		}

@@ -2,76 +2,57 @@ package elasticsearch
 
 import (
 	"bytes"
-	"context"
+	"io"
 )
 
-func CreateProductIndex() error {
+func CreateProductIndex(
+	tenantCode string,
+	countryCode string,
+) error {
 
-	mapping := `
-{
-  "mappings": {
-    "properties": {
-      "id": {
-        "type": "long"
-      },
+	indexName :=
+		GetProductIndex(
+			tenantCode,
+			countryCode,
+		)
 
-      "name": {
-        "type": "text"
-      },
+	exists, err :=
+		Client.Indices.Exists(
+			[]string{
+				indexName,
+			},
+		)
 
-      "slug": {
-        "type": "keyword"
-      },
+	if err != nil {
+		return err
+	}
 
-      "category": {
-        "type": "keyword"
-      },
+	defer exists.Body.Close()
 
-      "subcategory": {
-        "type": "keyword"
-      },
+	if exists.StatusCode == 200 {
+		return nil
+	}
 
-      "brand": {
-        "type": "keyword"
-      },
-
-      "price": {
-        "type": "double"
-      },
-
-      "discount_price": {
-        "type": "double"
-      },
-
-      "status": {
-        "type": "keyword"
-      },
-
-      "created_at": {
-        "type": "date"
-      },
-
-      "sales_count": {
-        "type": "long"
-      }
-    }
-  }
-}`
-
-	_, err :=
+	response, err :=
 		Client.Indices.Create(
-			"products",
-
-			Client.Indices.Create.WithContext(
-				context.Background(),
-			),
-
+			indexName,
 			Client.Indices.Create.WithBody(
 				bytes.NewReader(
-					[]byte(mapping),
+					[]byte(
+						ProductMapping(),
+					),
 				),
 			),
 		)
+
+	if err != nil {
+		return err
+	}
+
+	defer response.Body.Close()
+
+	_, err =
+		io.ReadAll(response.Body)
 
 	return err
 }
