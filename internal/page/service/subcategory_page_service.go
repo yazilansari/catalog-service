@@ -78,18 +78,84 @@ func GetSubCategoryPage(
 		),
 	)
 
+	// cached, err :=
+	// 	redisClient.Client.Get(
+	// 		redisClient.Ctx,
+	// 		cacheKey,
+	// 	).Result()
+
+	// // CACHE HIT
+
+	// if err == nil {
+
+	// 	logger.Log.Info(
+	// 		"subcategory page cache hit",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+	// 	)
+
+	// 	var data dto.SubCategoryPageResponse
+
+	// 	err = json.Unmarshal(
+	// 		[]byte(cached),
+	// 		&data,
+	// 	)
+
+	// 	if err == nil {
+	// 		logger.Log.Info(
+	// 			"subcategory page cache unmarshal success",
+
+	// 			zap.String(
+	// 				"cache_key",
+	// 				cacheKey,
+	// 			),
+	// 		)
+
+	// 		return &data, nil
+	// 	}
+
+	// 	logger.Log.Error(
+	// 		"subcategory page cache unmarshal failed",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+	// }
+
+	// // CACHE MISS
+
+	// if err != nil {
+
+	// 	logger.Log.Warn(
+	// 		"redis cache miss",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+	// }
+
 	cached, err :=
-		redisClient.Client.Get(
+		redisClient.GetCache[dto.SubCategoryPageResponse](
 			redisClient.Ctx,
 			cacheKey,
-		).Result()
+		)
 
-	// CACHE HIT
-
-	if err == nil {
+	if err == nil &&
+		cached != nil {
 
 		logger.Log.Info(
-			"subcategory page cache hit",
+			"redis cache hit",
 
 			zap.String(
 				"cache_key",
@@ -97,52 +163,7 @@ func GetSubCategoryPage(
 			),
 		)
 
-		var data dto.SubCategoryPageResponse
-
-		err = json.Unmarshal(
-			[]byte(cached),
-			&data,
-		)
-
-		if err == nil {
-			logger.Log.Info(
-				"subcategory page cache unmarshal success",
-
-				zap.String(
-					"cache_key",
-					cacheKey,
-				),
-			)
-
-			return &data, nil
-		}
-
-		logger.Log.Error(
-			"subcategory page cache unmarshal failed",
-
-			zap.String(
-				"cache_key",
-				cacheKey,
-			),
-
-			zap.Error(err),
-		)
-	}
-
-	// CACHE MISS
-
-	if err != nil {
-
-		logger.Log.Warn(
-			"redis cache miss",
-
-			zap.String(
-				"cache_key",
-				cacheKey,
-			),
-
-			zap.Error(err),
-		)
+		return cached, nil
 	}
 
 	// =========================

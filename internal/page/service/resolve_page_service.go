@@ -73,18 +73,84 @@ func ResolvePage(
 		),
 	)
 
+	// cached, err :=
+	// 	redisClient.Client.Get(
+	// 		redisClient.Ctx,
+	// 		cacheKey,
+	// 	).Result()
+
+	// // CACHE HIT
+
+	// if err == nil {
+
+	// 	logger.Log.Info(
+	// 		"resolve page cache hit",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+	// 	)
+
+	// 	var data dto.ResolvePageResponse
+
+	// 	err = json.Unmarshal(
+	// 		[]byte(cached),
+	// 		&data,
+	// 	)
+
+	// 	if err == nil {
+	// 		logger.Log.Info(
+	// 			"resolve page cache unmarshal success",
+
+	// 			zap.String(
+	// 				"cache_key",
+	// 				cacheKey,
+	// 			),
+	// 		)
+
+	// 		return &data, nil
+	// 	}
+
+	// 	logger.Log.Error(
+	// 		"resolve page cache unmarshal failed",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+	// }
+
+	// // CACHE MISS
+
+	// if err != nil {
+
+	// 	logger.Log.Warn(
+	// 		"redis cache miss",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+	// }
+
 	cached, err :=
-		redisClient.Client.Get(
+		redisClient.GetCache[dto.ResolvePageResponse](
 			redisClient.Ctx,
 			cacheKey,
-		).Result()
+		)
 
-	// CACHE HIT
-
-	if err == nil {
+	if err == nil &&
+		cached != nil {
 
 		logger.Log.Info(
-			"resolve page cache hit",
+			"redis cache hit",
 
 			zap.String(
 				"cache_key",
@@ -92,52 +158,7 @@ func ResolvePage(
 			),
 		)
 
-		var data dto.ResolvePageResponse
-
-		err = json.Unmarshal(
-			[]byte(cached),
-			&data,
-		)
-
-		if err == nil {
-			logger.Log.Info(
-				"resolve page cache unmarshal success",
-
-				zap.String(
-					"cache_key",
-					cacheKey,
-				),
-			)
-
-			return &data, nil
-		}
-
-		logger.Log.Error(
-			"resolve page cache unmarshal failed",
-
-			zap.String(
-				"cache_key",
-				cacheKey,
-			),
-
-			zap.Error(err),
-		)
-	}
-
-	// CACHE MISS
-
-	if err != nil {
-
-		logger.Log.Warn(
-			"redis cache miss",
-
-			zap.String(
-				"cache_key",
-				cacheKey,
-			),
-
-			zap.Error(err),
-		)
+		return cached, nil
 	}
 
 	// =========================

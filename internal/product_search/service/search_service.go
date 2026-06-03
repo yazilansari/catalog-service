@@ -2,9 +2,9 @@ package service
 
 import (
 	"catalog-service/internal/logger"
-	"catalog-service/internal/plp/dto"
-	"catalog-service/internal/plp/model"
-	"catalog-service/internal/plp/repository"
+	"catalog-service/internal/product_search/dto"
+	"catalog-service/internal/product_search/model"
+	"catalog-service/internal/product_search/repository"
 	redisClient "catalog-service/internal/redis"
 	"encoding/json"
 	"strconv"
@@ -13,11 +13,21 @@ import (
 	"go.uber.org/zap"
 )
 
-func GetProducts(
-	query dto.ProductQuery,
+func SearchProducts(
+	query dto.ProductSearchQuery,
 	tenantCode string,
 	countryCode string,
-) (*dto.ProductListResponse, error) {
+) (
+	*dto.ProductSearchResponse,
+	error,
+) {
+
+	logger.Log.Info(
+		"search products service called",
+		zap.String("tenant_code", tenantCode),
+		zap.String("country_code", countryCode),
+		zap.Any("query", query),
+	)
 
 	// =========================
 	// DEFAULTS
@@ -27,22 +37,27 @@ func GetProducts(
 		query.Limit = 20
 	}
 
+	if query.Limit > 100 {
+		query.Limit = 100
+	}
+
 	if query.Sort == "" {
-		query.Sort = "latest"
+		query.Sort = "relevance"
 	}
 
 	// =========================
 	// CACHE KEY
 	// =========================
 
-	cacheKey := buildCacheKey(
-		query,
-		tenantCode,
-		countryCode,
-	)
+	cacheKey :=
+		buildCacheKey(
+			query,
+			tenantCode,
+			countryCode,
+		)
 
 	logger.Log.Info(
-		"get products request",
+		"product search request",
 
 		zap.String(
 			"cache_key",
@@ -65,7 +80,7 @@ func GetProducts(
 	// if err == nil {
 
 	// 	logger.Log.Info(
-	// 		"plp cache hit",
+	// 		"product search cache hit",
 
 	// 		zap.String(
 	// 			"cache_key",
@@ -73,7 +88,7 @@ func GetProducts(
 	// 		),
 	// 	)
 
-	// 	var response dto.ProductListResponse
+	// 	var response dto.ProductSearchResponse
 
 	// 	err =
 	// 		json.Unmarshal(
@@ -84,7 +99,7 @@ func GetProducts(
 	// 	if err == nil {
 
 	// 		logger.Log.Info(
-	// 			"plp cache unmarshal success",
+	// 			"product search unmarshal success",
 
 	// 			zap.String(
 	// 				"cache_key",
@@ -96,7 +111,7 @@ func GetProducts(
 	// 	}
 
 	// 	logger.Log.Error(
-	// 		"plp page cache unmarshal failed",
+	// 		"product search cache unmarshal failed",
 
 	// 		zap.String(
 	// 			"cache_key",
@@ -112,7 +127,7 @@ func GetProducts(
 	// if err != nil {
 
 	// 	logger.Log.Warn(
-	// 		"plp redis cache miss",
+	// 		"product search redis cache miss",
 
 	// 		zap.String(
 	// 			"cache_key",
@@ -124,7 +139,7 @@ func GetProducts(
 	// }
 
 	cached, err :=
-		redisClient.GetCache[dto.ProductListResponse](
+		redisClient.GetCache[dto.ProductSearchResponse](
 			redisClient.Ctx,
 			cacheKey,
 		)
@@ -161,25 +176,6 @@ func GetProducts(
 			countryCode,
 		)
 
-	logger.Log.Info(
-		"search result",
-
-		zap.Int(
-			"rows",
-			len(rows),
-		),
-
-		zap.Bool(
-			"aggs_nil",
-			aggs == nil,
-		),
-
-		zap.Int64(
-			"total",
-			total,
-		),
-	)
-
 	duration :=
 		time.Since(start)
 
@@ -212,21 +208,20 @@ func GetProducts(
 	// MAP PRODUCTS
 	// =========================
 
-	var products []model.ProductDocument
+	var products []model.ProductSearchDocument
 
 	for _, row := range rows {
 
 		data, _ :=
-			json.Marshal(
-				row,
+			json.Marshal(row)
+
+		var product model.ProductSearchDocument
+
+		_ =
+			json.Unmarshal(
+				data,
+				&product,
 			)
-
-		var product model.ProductDocument
-
-		_ = json.Unmarshal(
-			data,
-			&product,
-		)
 
 		products =
 			append(
@@ -239,103 +234,86 @@ func GetProducts(
 	// PAGINATION
 	// =========================
 
-	hasMore := false
+	hasMore := int64(len(products)) < total
 
 	nextCursor := ""
 
-	if len(products) > 0 {
+	if hasMore &&
+		len(products) > 0 {
 
-		hasMore =
-			len(products) >= query.Limit
+		last :=
+			products[len(products)-1]
 
-		if hasMore {
+		switch v :=
+			last.Cursor.(type) {
 
-			last :=
-				products[len(products)-1]
+		case float64:
 
 			nextCursor =
-				strconv.FormatUint(
-					last.ID,
-					10,
+				strconv.FormatFloat(
+					v,
+					'f',
+					-1,
+					64,
 				)
+
+		case string:
+
+			nextCursor = v
 		}
 	}
 
 	// =========================
-	// FILTERS
+	// BRAND FILTERS
 	// =========================
 
 	var brands []string
 
-	var minPrice float64
-	var maxPrice float64
+	if brandsAgg, ok :=
+		aggs["brands"].(map[string]interface{}); ok {
 
-	if aggs != nil {
+		if buckets, ok :=
+			brandsAgg["buckets"].([]interface{}); ok {
 
-		// =========================
-		// BRANDS
-		// =========================
+			for _, bucket := range buckets {
 
-		if brandsAgg, ok :=
-			aggs["brands"].(map[string]interface{}); ok {
+				brand :=
+					bucket.(map[string]interface{})["key"]
 
-			if buckets, ok :=
-				brandsAgg["buckets"].([]interface{}); ok {
-
-				for _, bucket := range buckets {
-
-					bucketMap, ok :=
-						bucket.(map[string]interface{})
-
-					if !ok {
-						continue
-					}
-
-					key, ok :=
-						bucketMap["key"].(string)
-
-					if !ok {
-						continue
-					}
+				if value, ok :=
+					brand.(string); ok {
 
 					brands =
 						append(
 							brands,
-							key,
+							value,
 						)
 				}
 			}
 		}
+	}
 
-		// =========================
-		// MIN PRICE
-		// =========================
+	// =========================
+	// PRICE RANGE
+	// =========================
 
-		if minAgg, ok :=
-			aggs["min_price"].(map[string]interface{}); ok {
+	var minPrice float64
+	var maxPrice float64
 
-			if value, ok :=
-				minAgg["value"].(float64); ok {
+	if value, ok :=
+		aggs["min_price"].(map[string]interface{})["value"]; ok &&
+		value != nil {
 
-				minPrice =
-					value
-			}
-		}
+		minPrice =
+			value.(float64)
+	}
 
-		// =========================
-		// MAX PRICE
-		// =========================
+	if value, ok :=
+		aggs["max_price"].(map[string]interface{})["value"]; ok &&
+		value != nil {
 
-		if maxAgg, ok :=
-			aggs["max_price"].(map[string]interface{}); ok {
-
-			if value, ok :=
-				maxAgg["value"].(float64); ok {
-
-				maxPrice =
-					value
-			}
-		}
+		maxPrice =
+			value.(float64)
 	}
 
 	filters :=
@@ -353,7 +331,7 @@ func GetProducts(
 	// =========================
 
 	response :=
-		dto.ProductListResponse{
+		dto.ProductSearchResponse{
 			Products: products,
 
 			Filters: filters,
@@ -372,7 +350,7 @@ func GetProducts(
 		}
 
 	// =========================
-	// STORE CACHE
+	// CACHE RESPONSE
 	// =========================
 
 	jsonData, _ :=
@@ -380,17 +358,18 @@ func GetProducts(
 			response,
 		)
 
-	err = redisClient.Client.Set(
-		redisClient.Ctx,
-		cacheKey,
-		jsonData,
-		15*time.Minute,
-	).Err()
+	err =
+		redisClient.Client.Set(
+			redisClient.Ctx,
+			cacheKey,
+			jsonData,
+			time.Hour,
+		).Err()
 
 	if err != nil {
 
 		logger.Log.Error(
-			"failed to store plp in redis",
+			"failed to cache product search",
 
 			zap.String(
 				"cache_key",
@@ -399,11 +378,10 @@ func GetProducts(
 
 			zap.Error(err),
 		)
-
 	} else {
 
 		logger.Log.Info(
-			"plp cached successfully",
+			"product search cached successfully",
 
 			zap.String(
 				"cache_key",

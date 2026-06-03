@@ -9,25 +9,25 @@ import (
 )
 
 type ProductElasticDocument struct {
-	ID uint64 `json:"id"`
+	ID uint64 `gorm:"column:id" json:"id"`
 
-	Name string `json:"name"`
+	Name string `gorm:"column:name" json:"name"`
 
-	Slug string `json:"slug"`
+	Slug string `gorm:"column:slug" json:"slug"`
 
-	Category string `json:"category"`
+	Category string `gorm:"column:category" json:"category"`
 
-	SubCategory string `json:"subcategory"`
+	SubCategory string `gorm:"column:subcategory" json:"subcategory"`
 
-	Brand string `json:"brand"`
+	Brand string `gorm:"column:brand" json:"brand"`
 
-	Price float64 `json:"price"`
+	Price float64 `gorm:"column:price" json:"price"`
 
-	DiscountPrice float64 `json:"discount_price"`
+	DiscountPrice float64 `gorm:"column:discount_price" json:"discount_price"`
 
-	Status string `json:"status"`
+	Status string `gorm:"column:status" json:"status"`
 
-	CreatedAt string `json:"created_at"`
+	CreatedAt string `gorm:"column:created_at" json:"created_at"`
 }
 
 func GetProductsForElastic(
@@ -48,42 +48,42 @@ func GetProductsForElastic(
 		database.DB.
 			Table("products p").
 			Select(`
-				p.id,
-				p.name,
-				p.slug,
-				p.price,
-				p.sale_price,
-				p.status,
-				p.created_at,
+			p.id,
+			p.name,
+			p.slug,
+			p.price,
+			p.sale_price AS discount_price,
+			p.status,
+			p.created_at,
 
-				MAX(
-					CASE
-						WHEN c.parent_id = 0
-						THEN c.slug
-					END
-				) AS category,
+			MAX(
+				CASE
+					WHEN c.parent_id = 0
+					THEN c.slug
+				END
+			) AS category,
 
-				MAX(
-					CASE
-						WHEN c.parent_id <> 0
-						THEN c.slug
-					END
-				) AS subcategory,
+			MAX(
+				CASE
+					WHEN c.parent_id <> 0
+					THEN c.slug
+				END
+			) AS subcategory,
 
-				b.slug AS brand
-			`).
+			b.slug AS brand
+		`).
 			Joins(`
-				LEFT JOIN product_categories pc
-				ON pc.product_id = p.id
-			`).
+			LEFT JOIN product_categories pc
+			ON pc.product_id = p.id
+		`).
 			Joins(`
-				LEFT JOIN categories c
-				ON c.id = pc.category_id
-			`).
+			LEFT JOIN categories c
+			ON c.id = pc.category_id
+		`).
 			Joins(`
-				LEFT JOIN brands b
-				ON b.id = p.brand_id
-			`).
+			LEFT JOIN brands b
+			ON b.id = p.brand_id
+		`).
 			Where(
 				"p.status = ?",
 				"published",
@@ -97,15 +97,15 @@ func GetProductsForElastic(
 				countryCode,
 			).
 			Group(`
-				p.id,
-				p.name,
-				p.slug,
-				p.price,
-				p.sale_price,
-				p.status,
-				p.created_at,
-				b.slug
-			`)
+			p.id,
+			p.name,
+			p.slug,
+			p.price,
+			p.sale_price,
+			p.status,
+			p.created_at,
+			b.slug
+		`)
 
 	err := query.Find(&products).Error
 

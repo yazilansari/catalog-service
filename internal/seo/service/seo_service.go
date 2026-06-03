@@ -77,18 +77,84 @@ func GetSEOPage(
 		),
 	)
 
+	// cached, err :=
+	// 	redisClient.Client.Get(
+	// 		redisClient.Ctx,
+	// 		cacheKey,
+	// 	).Result()
+
+	// // CACHE HIT
+
+	// if err == nil {
+
+	// 	logger.Log.Info(
+	// 		"seo cache hit",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+	// 	)
+
+	// 	var data dto.SEOResponse
+
+	// 	err = json.Unmarshal(
+	// 		[]byte(cached),
+	// 		&data,
+	// 	)
+
+	// 	if err == nil {
+	// 		logger.Log.Info(
+	// 			"seo cache unmarshal success",
+
+	// 			zap.String(
+	// 				"cache_key",
+	// 				cacheKey,
+	// 			),
+	// 		)
+
+	// 		return &data, nil
+	// 	}
+
+	// 	logger.Log.Error(
+	// 		"seo cache unmarshal failed",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+	// }
+
+	// // CACHE MISS
+
+	// if err != nil {
+
+	// 	logger.Log.Warn(
+	// 		"redis cache miss",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+	// }
+
 	cached, err :=
-		redisClient.Client.Get(
+		redisClient.GetCache[dto.SEOResponse](
 			redisClient.Ctx,
 			cacheKey,
-		).Result()
+		)
 
-	// CACHE HIT
-
-	if err == nil {
+	if err == nil &&
+		cached != nil {
 
 		logger.Log.Info(
-			"seo cache hit",
+			"redis cache hit",
 
 			zap.String(
 				"cache_key",
@@ -96,52 +162,7 @@ func GetSEOPage(
 			),
 		)
 
-		var data dto.SEOResponse
-
-		err = json.Unmarshal(
-			[]byte(cached),
-			&data,
-		)
-
-		if err == nil {
-			logger.Log.Info(
-				"seo cache unmarshal success",
-
-				zap.String(
-					"cache_key",
-					cacheKey,
-				),
-			)
-
-			return &data, nil
-		}
-
-		logger.Log.Error(
-			"seo cache unmarshal failed",
-
-			zap.String(
-				"cache_key",
-				cacheKey,
-			),
-
-			zap.Error(err),
-		)
-	}
-
-	// CACHE MISS
-
-	if err != nil {
-
-		logger.Log.Warn(
-			"redis cache miss",
-
-			zap.String(
-				"cache_key",
-				cacheKey,
-			),
-
-			zap.Error(err),
-		)
+		return cached, nil
 	}
 
 	// =========================

@@ -161,6 +161,11 @@ func main() {
 
 	for _, product := range products {
 
+		logger.Log.Info(
+			"product before index",
+			zap.Any("product", product),
+		)
+
 		document :=
 			map[string]interface{}{
 				"id": product.ID,

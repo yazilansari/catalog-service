@@ -1,0 +1,25 @@
+package model
+
+type ProductSearchDocument struct {
+	ID uint64 `json:"id"`
+
+	Name string `json:"name"`
+
+	Slug string `json:"slug"`
+
+	Category string `json:"category"`
+
+	SubCategory string `json:"subcategory"`
+
+	Brand string `json:"brand"`
+
+	Price float64 `json:"price"`
+
+	DiscountPrice float64 `json:"discount_price"`
+
+	Status string `json:"status"`
+
+	CreatedAt string `json:"created_at"`
+
+	Cursor interface{} `json:"cursor,omitempty"`
+}

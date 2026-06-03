@@ -66,18 +66,85 @@ func GetProductPage(
 		),
 	)
 
+	// cached, err :=
+	// 	redisClient.Client.Get(
+	// 		redisClient.Ctx,
+	// 		cacheKey,
+	// 	).Result()
+
+	// // CACHE HIT
+
+	// if err == nil {
+
+	// 	logger.Log.Info(
+	// 		"product cache hit",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+	// 	)
+
+	// 	var data dto.ProductResponse
+
+	// 	err = json.Unmarshal(
+	// 		[]byte(cached),
+	// 		&data,
+	// 	)
+
+	// 	if err == nil {
+
+	// 		logger.Log.Info(
+	// 			"product cache unmarshal success",
+
+	// 			zap.String(
+	// 				"cache_key",
+	// 				cacheKey,
+	// 			),
+	// 		)
+
+	// 		return &data, nil
+	// 	}
+
+	// 	logger.Log.Error(
+	// 		"product cache unmarshal failed",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+	// }
+
+	// // CACHE MISS
+
+	// if err != nil {
+
+	// 	logger.Log.Warn(
+	// 		"product redis cache miss",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+	// }
+
 	cached, err :=
-		redisClient.Client.Get(
+		redisClient.GetCache[dto.ProductResponse](
 			redisClient.Ctx,
 			cacheKey,
-		).Result()
+		)
 
-	// CACHE HIT
-
-	if err == nil {
+	if err == nil &&
+		cached != nil {
 
 		logger.Log.Info(
-			"product cache hit",
+			"redis cache hit",
 
 			zap.String(
 				"cache_key",
@@ -85,42 +152,8 @@ func GetProductPage(
 			),
 		)
 
-		var data dto.ProductResponse
-
-		err = json.Unmarshal(
-			[]byte(cached),
-			&data,
-		)
-
-		if err == nil {
-
-			logger.Log.Info(
-				"product cache unmarshal success",
-
-				zap.String(
-					"cache_key",
-					cacheKey,
-				),
-			)
-
-			return &data, nil
-		}
-
-		logger.Log.Error(
-			"product cache unmarshal failed",
-
-			zap.Error(err),
-		)
+		return cached, nil
 	}
-
-	logger.Log.Warn(
-		"cache miss",
-
-		zap.String(
-			"cache_key",
-			cacheKey,
-		),
-	)
 
 	// =========================
 	// PRODUCT
@@ -349,7 +382,7 @@ func GetProductPage(
 	duration := time.Since(start)
 
 	logger.Log.Info(
-		"product page built",
+		"product built",
 
 		zap.Duration(
 			"duration",
@@ -377,7 +410,27 @@ func GetProductPage(
 		logger.Log.Error(
 			"failed to cache product",
 
+			zap.String(
+				"cache_key",
+				cacheKey,
+			),
+
 			zap.Error(err),
+		)
+	} else {
+
+		logger.Log.Info(
+			"product cached successfully",
+
+			zap.String(
+				"cache_key",
+				cacheKey,
+			),
+
+			zap.Duration(
+				"ttl",
+				time.Hour,
+			),
 		)
 	}
 

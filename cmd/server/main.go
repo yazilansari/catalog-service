@@ -7,6 +7,7 @@ import (
 	pageRoutes "catalog-service/internal/page/routes"
 	plpRoutes "catalog-service/internal/plp/routes"
 	productRoutes "catalog-service/internal/product/routes"
+	productSearchRoutes "catalog-service/internal/product_search/routes"
 	redisClient "catalog-service/internal/redis"
 	seoRoutes "catalog-service/internal/seo/routes"
 
@@ -125,6 +126,8 @@ func main() {
 	seoRoutes.SetupSEORoutes(api)
 
 	pageRoutes.SetupPageRoutes(api)
+
+	productSearchRoutes.SetupProductSearchRoutes(api)
 
 	productRoutes.SetupProductRoutes(api)
 
