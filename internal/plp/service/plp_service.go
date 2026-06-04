@@ -123,11 +123,41 @@ func GetProducts(
 	// 	)
 	// }
 
+	redisStart := time.Now()
+
 	cached, err :=
 		redisClient.GetCache[dto.ProductListResponse](
 			redisClient.Ctx,
 			cacheKey,
 		)
+
+	redisDuration := time.Since(redisStart)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if redisDuration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				redisDuration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				cacheKey,
+			),
+		)
+	}
 
 	if err == nil &&
 		cached != nil {
@@ -207,6 +237,33 @@ func GetProducts(
 			duration,
 		),
 	)
+
+	if duration > time.Second {
+
+		logger.Log.Warn(
+			"slow plp query detected",
+
+			zap.Any(
+				"query",
+				query,
+			),
+
+			zap.Duration(
+				"duration",
+				duration,
+			),
+
+			zap.String(
+				"country_code",
+				countryCode,
+			),
+
+			zap.String(
+				"tenant_code",
+				tenantCode,
+			),
+		)
+	}
 
 	// =========================
 	// MAP PRODUCTS
@@ -375,17 +432,84 @@ func GetProducts(
 	// STORE CACHE
 	// =========================
 
-	jsonData, _ :=
-		json.Marshal(
-			response,
-		)
+	// jsonData, _ :=
+	// 	json.Marshal(
+	// 		response,
+	// 	)
 
-	err = redisClient.Client.Set(
+	// err = redisClient.Client.Set(
+	// 	redisClient.Ctx,
+	// 	cacheKey,
+	// 	jsonData,
+	// 	15*time.Minute,
+	// ).Err()
+
+	// if err != nil {
+
+	// 	logger.Log.Error(
+	// 		"failed to store plp in redis",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+
+	// } else {
+
+	// 	logger.Log.Info(
+	// 		"plp cached successfully",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Duration(
+	// 			"ttl",
+	// 			time.Hour,
+	// 		),
+	// 	)
+	// }
+
+	redisSetStart := time.Now()
+
+	err = redisClient.SetCache(
 		redisClient.Ctx,
 		cacheKey,
-		jsonData,
-		15*time.Minute,
-	).Err()
+		response,
+		redisClient.PLPTTL,
+	)
+
+	redisSetDuration := time.Since(redisSetStart)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if redisSetDuration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				redisSetDuration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				cacheKey,
+			),
+		)
+	}
 
 	if err != nil {
 
@@ -412,7 +536,7 @@ func GetProducts(
 
 			zap.Duration(
 				"ttl",
-				time.Hour,
+				redisClient.PLPTTL,
 			),
 		)
 	}

@@ -1,7 +1,5 @@
 package model
 
-import "time"
-
 // =========================
 // CATEGORY MODEL
 // =========================
@@ -9,9 +7,9 @@ import "time"
 type Category struct {
 	ID uint64 `gorm:"column:id"`
 
-	TenantCode string `gorm:"column:tenant_code"`
+	// TenantCode string `gorm:"column:tenant_code"`
 
-	CountryCode string `gorm:"column:country_code"`
+	// CountryCode string `gorm:"column:country_code"`
 
 	Name string `gorm:"column:name"`
 
@@ -27,15 +25,15 @@ type Category struct {
 
 	MobileImage string `gorm:"column:mobile_image"`
 
-	ParentID *uint64 `gorm:"column:parent_id"`
+	ParentID *uint64 `gorm:"column:parent_id" json:"-"`
 
-	SortOrder int `gorm:"column:sort_order"`
+	// SortOrder int `gorm:"column:sort_order"`
 
-	Status string `gorm:"column:status"`
+	// Status string `gorm:"column:status"`
 
-	CreatedAt time.Time `gorm:"column:created_at"`
+	// CreatedAt time.Time `gorm:"column:created_at"`
 
-	UpdatedAt time.Time `gorm:"column:updated_at"`
+	// UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
 func (Category) TableName() string {
@@ -49,9 +47,9 @@ func (Category) TableName() string {
 type Product struct {
 	ID uint64 `gorm:"column:id"`
 
-	TenantCode string `gorm:"column:tenant_code"`
+	// TenantCode string `gorm:"column:tenant_code"`
 
-	CountryCode string `gorm:"column:country_code"`
+	// CountryCode string `gorm:"column:country_code"`
 
 	CategoryID uint64 `gorm:"column:category_id"`
 
@@ -71,7 +69,7 @@ type Product struct {
 
 	Price float64 `gorm:"column:price"`
 
-	SalePrice float64 `gorm:"column:sale_price"`
+	// SalePrice float64 `gorm:"column:sale_price"`
 
 	Stock int `gorm:"column:stock"`
 
@@ -81,11 +79,11 @@ type Product struct {
 
 	IsNewArrival bool `gorm:"column:is_new_arrival"`
 
-	Status string `gorm:"column:status"`
+	// Status string `gorm:"column:status"`
 
-	CreatedAt time.Time `gorm:"column:created_at"`
+	// CreatedAt time.Time `gorm:"column:created_at"`
 
-	UpdatedAt time.Time `gorm:"column:updated_at"`
+	// UpdatedAt time.Time `gorm:"column:updated_at"`
 }
 
 func (Product) TableName() string {

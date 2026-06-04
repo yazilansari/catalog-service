@@ -52,6 +52,32 @@ func SetTenantCache(
 
 	duration := time.Since(start)
 
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if duration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				duration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				key,
+			),
+		)
+	}
+
 	if err != nil {
 
 		logger.Log.Error(
@@ -117,6 +143,32 @@ func GetTenantCache(
 	).Result()
 
 	duration := time.Since(start)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if duration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				duration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				key,
+			),
+		)
+	}
 
 	if err != nil {
 

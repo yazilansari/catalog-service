@@ -9,8 +9,6 @@ import (
 
 	redisClient "catalog-service/internal/redis"
 
-	"encoding/json"
-
 	"go.uber.org/zap"
 )
 
@@ -144,11 +142,41 @@ func GetSEOPage(
 	// 	)
 	// }
 
+	redisStart := time.Now()
+
 	cached, err :=
 		redisClient.GetCache[dto.SEOResponse](
 			redisClient.Ctx,
 			cacheKey,
 		)
+
+	redisDuration := time.Since(redisStart)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if redisDuration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				redisDuration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				cacheKey,
+			),
+		)
+	}
 
 	if err == nil &&
 		cached != nil {
@@ -306,14 +334,81 @@ func GetSEOPage(
 	// STORE CACHE
 	// =========================
 
-	jsonData, _ := json.Marshal(data)
+	// jsonData, _ := json.Marshal(data)
 
-	err = redisClient.Client.Set(
+	// err = redisClient.Client.Set(
+	// 	redisClient.Ctx,
+	// 	cacheKey,
+	// 	jsonData,
+	// 	time.Hour,
+	// ).Err()
+
+	// if err != nil {
+
+	// 	logger.Log.Error(
+	// 		"failed to store seo in redis",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+
+	// } else {
+
+	// 	logger.Log.Info(
+	// 		"seo cached successfully",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Duration(
+	// 			"ttl",
+	// 			time.Hour,
+	// 		),
+	// 	)
+	// }
+
+	redisSetStart := time.Now()
+
+	err = redisClient.SetCache(
 		redisClient.Ctx,
 		cacheKey,
-		jsonData,
-		time.Hour,
-	).Err()
+		data,
+		redisClient.SEOTTL,
+	)
+
+	redisSetDuration := time.Since(redisSetStart)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if redisSetDuration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				redisSetDuration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				cacheKey,
+			),
+		)
+	}
 
 	if err != nil {
 
@@ -340,7 +435,7 @@ func GetSEOPage(
 
 			zap.Duration(
 				"ttl",
-				time.Hour,
+				redisClient.SEOTTL,
 			),
 		)
 	}

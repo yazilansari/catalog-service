@@ -5,7 +5,6 @@ import (
 	"catalog-service/internal/page/dto"
 	"catalog-service/internal/page/repository"
 	redisClient "catalog-service/internal/redis"
-	"encoding/json"
 	"time"
 
 	"go.uber.org/zap"
@@ -145,11 +144,41 @@ func GetProductPage(
 	// 	)
 	// }
 
+	redisStart := time.Now()
+
 	cached, err :=
 		redisClient.GetCache[dto.ProductPageResponse](
 			redisClient.Ctx,
 			cacheKey,
 		)
+
+	redisDuration := time.Since(redisStart)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if redisDuration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				redisDuration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				cacheKey,
+			),
+		)
+	}
 
 	if err == nil &&
 		cached != nil {
@@ -358,6 +387,16 @@ func GetProductPage(
 				"slug",
 				slug,
 			),
+
+			zap.String(
+				"country_code",
+				countryCode,
+			),
+
+			zap.String(
+				"tenant_code",
+				tenantCode,
+			),
 		)
 	}
 
@@ -381,14 +420,81 @@ func GetProductPage(
 	// CACHE STORE
 	// =========================
 
-	jsonData, _ := json.Marshal(data)
+	// jsonData, _ := json.Marshal(data)
 
-	err = redisClient.Client.Set(
+	// err = redisClient.Client.Set(
+	// 	redisClient.Ctx,
+	// 	cacheKey,
+	// 	jsonData,
+	// 	time.Hour,
+	// ).Err()
+
+	// if err != nil {
+
+	// 	logger.Log.Error(
+	// 		"failed to cache product page",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+
+	// } else {
+
+	// 	logger.Log.Info(
+	// 		"product page cached successfully",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Duration(
+	// 			"ttl",
+	// 			time.Hour,
+	// 		),
+	// 	)
+	// }
+
+	redisSetStart := time.Now()
+
+	err = redisClient.SetCache(
 		redisClient.Ctx,
 		cacheKey,
-		jsonData,
-		time.Hour,
-	).Err()
+		data,
+		redisClient.PageTTL,
+	)
+
+	redisSetDuration := time.Since(redisSetStart)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if redisSetDuration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				redisSetDuration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				cacheKey,
+			),
+		)
+	}
 
 	if err != nil {
 
@@ -415,7 +521,7 @@ func GetProductPage(
 
 			zap.Duration(
 				"ttl",
-				time.Hour,
+				redisClient.PageTTL,
 			),
 		)
 	}

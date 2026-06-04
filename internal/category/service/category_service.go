@@ -10,8 +10,6 @@ import (
 
 	redisClient "catalog-service/internal/redis"
 
-	"encoding/json"
-
 	"go.uber.org/zap"
 )
 
@@ -130,11 +128,41 @@ func GetCategoryTree(
 	// 	)
 	// }
 
+	redisStart := time.Now()
+
 	cached, err :=
 		redisClient.GetCache[[]*dto.CategoryResponse](
 			redisClient.Ctx,
 			cacheKey,
 		)
+
+	redisDuration := time.Since(redisStart)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if redisDuration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				redisDuration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				cacheKey,
+			),
+		)
+	}
 
 	if err == nil &&
 		cached != nil {
@@ -229,6 +257,11 @@ func GetCategoryTree(
 				"tenant_code",
 				tenantCode,
 			),
+
+			zap.String(
+				"country_code",
+				countryCode,
+			),
 		)
 	}
 
@@ -247,14 +280,81 @@ func GetCategoryTree(
 	// STORE CACHE
 	// =========================
 
-	jsonData, _ := json.Marshal(tree)
+	// jsonData, _ := json.Marshal(tree)
 
-	err = redisClient.Client.Set(
+	// err = redisClient.Client.Set(
+	// 	redisClient.Ctx,
+	// 	cacheKey,
+	// 	jsonData,
+	// 	time.Hour,
+	// ).Err()
+
+	// if err != nil {
+
+	// 	logger.Log.Error(
+	// 		"failed to store categories in redis",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Error(err),
+	// 	)
+
+	// } else {
+
+	// 	logger.Log.Info(
+	// 		"categories cached successfully",
+
+	// 		zap.String(
+	// 			"cache_key",
+	// 			cacheKey,
+	// 		),
+
+	// 		zap.Duration(
+	// 			"ttl",
+	// 			time.Hour,
+	// 		),
+	// 	)
+	// }
+
+	redisSetStart := time.Now()
+
+	err = redisClient.SetCache(
 		redisClient.Ctx,
 		cacheKey,
-		jsonData,
-		time.Hour,
-	).Err()
+		tree,
+		redisClient.CategorySubCategoryTTL,
+	)
+
+	redisSetDuration := time.Since(redisSetStart)
+
+	// =========================
+	// SLOW REDIS QUERY DETECTION
+	// =========================
+
+	if redisSetDuration > time.Second {
+
+		logger.Log.Warn(
+			"slow redis operation detected",
+
+			zap.Duration(
+				"duration",
+				redisSetDuration,
+			),
+
+			zap.String(
+				"operation",
+				"Redis.Get",
+			),
+
+			zap.String(
+				"redis_key",
+				cacheKey,
+			),
+		)
+	}
 
 	if err != nil {
 
@@ -281,7 +381,7 @@ func GetCategoryTree(
 
 			zap.Duration(
 				"ttl",
-				time.Hour,
+				redisClient.CategorySubCategoryTTL,
 			),
 		)
 	}
