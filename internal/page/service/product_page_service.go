@@ -22,14 +22,25 @@ func GetProductPage(
 	priceMax float64,
 ) (interface{}, error) {
 
-	cacheKey :=
-		"page:" +
-			"product:" +
-			tenantCode +
-			":" +
-			countryCode +
-			":" +
-			slug
+	// cacheKey :=
+	// 	"page:" +
+	// 		"product:" +
+	// 		tenantCode +
+	// 		":" +
+	// 		countryCode +
+	// 		":" +
+	// 		slug
+
+	cacheKey := buildCacheKey(
+		tenantCode,
+		countryCode,
+		slug,
+		page,
+		sort,
+		limit,
+		priceMin,
+		priceMax,
+	)
 
 	// =========================
 	// CACHE

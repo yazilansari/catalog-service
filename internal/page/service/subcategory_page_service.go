@@ -22,14 +22,25 @@ func GetSubCategoryPage(
 	priceMax float64,
 ) (interface{}, error) {
 
-	cacheKey :=
-		"page:" +
-			"subcategory:" +
-			tenantCode +
-			":" +
-			countryCode +
-			":" +
-			slug
+	// cacheKey :=
+	// 	"page:" +
+	// 		"subcategory:" +
+	// 		tenantCode +
+	// 		":" +
+	// 		countryCode +
+	// 		":" +
+	// 		slug
+
+	cacheKey := buildCacheKey(
+		tenantCode,
+		countryCode,
+		slug,
+		page,
+		sort,
+		limit,
+		priceMin,
+		priceMax,
+	)
 
 	// =========================
 	// CACHE

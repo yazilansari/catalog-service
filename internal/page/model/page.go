@@ -1,5 +1,7 @@
 package model
 
+import promotionDto "catalog-service/internal/promotion/dto"
+
 // =========================
 // CATEGORY MODEL
 // =========================
@@ -84,6 +86,8 @@ type Product struct {
 	// CreatedAt time.Time `gorm:"column:created_at"`
 
 	// UpdatedAt time.Time `gorm:"column:updated_at"`
+
+	Promotion *promotionDto.PromotionResponse `json:"promotion,omitempty" gorm:"-"`
 }
 
 func (Product) TableName() string {

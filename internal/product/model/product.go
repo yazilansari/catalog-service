@@ -1,6 +1,8 @@
 package model
 
-import "time"
+import (
+	"time"
+)
 
 type Product struct {
 	ID uint64 `gorm:"column:id"`

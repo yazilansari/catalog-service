@@ -3,10 +3,13 @@ package service
 import (
 	"catalog-service/internal/logger"
 	"catalog-service/internal/page/dto"
+	"catalog-service/internal/page/helper"
 	"catalog-service/internal/page/repository"
 	"time"
 
 	redisClient "catalog-service/internal/redis"
+
+	promotionService "catalog-service/internal/promotion/service"
 
 	"go.uber.org/zap"
 )
@@ -23,14 +26,25 @@ func GetCategoryPage(
 	priceMax float64,
 ) (interface{}, error) {
 
-	cacheKey :=
-		"page:" +
-			"category:" +
-			tenantCode +
-			":" +
-			countryCode +
-			":" +
-			slug
+	// cacheKey :=
+	// 	"page:" +
+	// 		"category:" +
+	// 		tenantCode +
+	// 		":" +
+	// 		countryCode +
+	// 		":" +
+	// 		slug
+
+	cacheKey := buildCacheKey(
+		tenantCode,
+		countryCode,
+		slug,
+		page,
+		sort,
+		limit,
+		priceMin,
+		priceMax,
+	)
 
 	// =========================
 	// CACHE
@@ -145,7 +159,7 @@ func GetCategoryPage(
 	// 	)
 	// }
 
-	redisStart := time.Now()
+	start := time.Now()
 
 	cached, err :=
 		redisClient.GetCache[dto.CategoryPageResponse](
@@ -153,7 +167,7 @@ func GetCategoryPage(
 			cacheKey,
 		)
 
-	redisDuration := time.Since(redisStart)
+	redisDuration := time.Since(start)
 
 	// =========================
 	// SLOW REDIS QUERY DETECTION
@@ -214,7 +228,7 @@ func GetCategoryPage(
 		),
 	)
 
-	start := time.Now()
+	categoryPageStart := time.Now()
 
 	category, err := repository.FindCategoryBySlug(
 		tenantCode,
@@ -222,7 +236,7 @@ func GetCategoryPage(
 		slug,
 	)
 
-	categoryPageDuration := time.Since(start)
+	categoryPageDuration := time.Since(categoryPageStart)
 
 	if err != nil {
 
@@ -248,11 +262,13 @@ func GetCategoryPage(
 		return nil, err
 	}
 
+	subCategoryPageStart := time.Now()
+
 	subCategories, err := repository.GetSubCategories(
 		category.ID,
 	)
 
-	subCategoryPageDuration := time.Since(start)
+	subCategoryPageDuration := time.Since(subCategoryPageStart)
 
 	if err != nil {
 		logger.Log.Error(
@@ -288,6 +304,8 @@ func GetCategoryPage(
 		return nil, err
 	}
 
+	productPageStart := time.Now()
+
 	products, total, err := repository.GetProductsByCategory(
 		category.ID,
 		page,
@@ -298,7 +316,7 @@ func GetCategoryPage(
 		priceMax,
 	)
 
-	productPageDuration := time.Since(start)
+	productPageDuration := time.Since(productPageStart)
 
 	if err != nil {
 		logger.Log.Error(
@@ -334,7 +352,31 @@ func GetCategoryPage(
 		return nil, err
 	}
 
+	promotionMap, err :=
+		promotionService.GetProductsPromotions(
+			tenantCode,
+			countryCode,
+			helper.ExtractProductIDs(products),
+			helper.BuildPriceMap(products),
+		)
+
+	if err != nil {
+		logger.Log.Warn(
+			"failed to fetch promotions",
+			zap.Error(err),
+		)
+	}
+
 	duration := time.Since(start)
+
+	for i := range products {
+
+		if promotion, ok := promotionMap[products[i].ID]; ok {
+
+			products[i].Promotion = promotion
+
+		}
+	}
 
 	logger.Log.Info(
 		"page fetched from database",
@@ -480,7 +522,7 @@ func GetCategoryPage(
 
 			zap.String(
 				"operation",
-				"Redis.Get",
+				"Redis.Set",
 			),
 
 			zap.String(

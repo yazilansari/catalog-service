@@ -74,7 +74,7 @@ func FindCategoryBySlug(
 
 	start := time.Now()
 
-	err := query.Find(&category).Error
+	err := query.First(&category).Error
 
 	duration := time.Since(start)
 

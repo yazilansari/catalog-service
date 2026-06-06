@@ -9,8 +9,8 @@ import (
 )
 
 type cacheKeyPayload struct {
-	TenantCode  string `json:"tenant_code"`
-	CountryCode string `json:"country_code"`
+	// TenantCode  string `json:"tenant_code"`
+	// CountryCode string `json:"country_code"`
 
 	Category    string `json:"category,omitempty"`
 	SubCategory string `json:"subcategory,omitempty"`
@@ -31,8 +31,8 @@ func buildCacheKey(
 ) string {
 
 	payload := cacheKeyPayload{
-		TenantCode:  tenantCode,
-		CountryCode: countryCode,
+		// TenantCode:  tenantCode,
+		// CountryCode: countryCode,
 
 		Category:    query.Category,
 		SubCategory: query.SubCategory,
@@ -77,8 +77,10 @@ func buildCacheKey(
 	}
 
 	return fmt.Sprintf(
-		"plp:%s:%s",
+		"plp:%s:%s:%s:%s",
 		prefix,
+		tenantCode,
+		countryCode,
 		shortHash,
 	)
 }
