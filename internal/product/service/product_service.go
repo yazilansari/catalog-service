@@ -4,6 +4,7 @@ import (
 	"catalog-service/internal/logger"
 	"catalog-service/internal/product/dto"
 	"catalog-service/internal/product/repository"
+	promotionService "catalog-service/internal/promotion/service"
 	redisClient "catalog-service/internal/redis"
 	"time"
 
@@ -208,6 +209,23 @@ func GetProductPage(
 		return nil, err
 	}
 
+	productPromotion, err :=
+		promotionService.GetProductPromotions(
+			tenantCode,
+			countryCode,
+			product.ID,
+			product.Price,
+		)
+
+	if err != nil {
+		logger.Log.Warn(
+			"failed to fetch promotions",
+			zap.Error(err),
+		)
+	}
+
+	product.Promotion = productPromotion
+
 	logger.Log.Info(
 		"product fetched",
 
@@ -348,7 +366,50 @@ func GetProductPage(
 		)
 
 	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch related products",
+
+			zap.Error(err),
+		)
+
 		return nil, err
+	}
+
+	productIDs := make([]uint64, 0, len(relatedDB))
+	priceMap := make(map[uint64]float64)
+
+	for _, p := range relatedDB {
+		productIDs = append(productIDs, p.ID)
+		priceMap[p.ID] = p.Price
+	}
+
+	relatedPromotionMap, err :=
+		promotionService.GetProductsPromotions(
+			tenantCode,
+			countryCode,
+			productIDs,
+			priceMap,
+		)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch related products promotions",
+
+			zap.Error(err),
+		)
+
+		return nil, err
+	}
+
+	for i := range relatedDB {
+
+		if promotion,
+			ok := relatedPromotionMap[relatedDB[i].ID]; ok {
+
+			relatedDB[i].Promotion = promotion
+		}
 	}
 
 	var relatedProducts []dto.RelatedProductResponse
@@ -368,7 +429,9 @@ func GetProductPage(
 
 					Price: p.Price,
 
-					DiscountPrice: p.DiscountPrice,
+					// DiscountPrice: p.DiscountPrice,
+
+					Promotion: p.Promotion,
 				},
 			)
 	}

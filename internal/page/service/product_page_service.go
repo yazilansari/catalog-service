@@ -3,7 +3,10 @@ package service
 import (
 	"catalog-service/internal/logger"
 	"catalog-service/internal/page/dto"
+	"catalog-service/internal/page/helper"
 	"catalog-service/internal/page/repository"
+	productRepository "catalog-service/internal/product/repository"
+	promotionService "catalog-service/internal/promotion/service"
 	redisClient "catalog-service/internal/redis"
 	"time"
 
@@ -233,6 +236,23 @@ func GetProductPage(
 			slug,
 		)
 
+	productPromotion, err :=
+		promotionService.GetProductPromotions(
+			tenantCode,
+			countryCode,
+			product.ID,
+			product.Price,
+		)
+
+	if err != nil {
+		logger.Log.Warn(
+			"failed to fetch promotions",
+			zap.Error(err),
+		)
+	}
+
+	product.Promotion = productPromotion
+
 	ProductPageDuration := time.Since(start)
 
 	if err != nil {
@@ -321,6 +341,48 @@ func GetProductPage(
 		return nil, err
 	}
 
+	// =========================
+	// IMAGES
+	// =========================
+
+	images, err :=
+		productRepository.GetProductImages(
+			product.ID,
+		)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch product page",
+
+			zap.String("tenant_code", tenantCode),
+			zap.String("country_code", countryCode),
+			zap.String(
+				"type",
+				"products",
+			),
+			zap.String("slug", slug),
+
+			zap.Error(err),
+		)
+
+		return nil, err
+	}
+
+	imageDTOs := make([]dto.ProductImage, 0, len(images))
+
+	for _, img := range images {
+		imageDTOs = append(imageDTOs, dto.ProductImage{
+			ID:        img.ID,
+			Image:     img.Image,
+			SortOrder: img.SortOrder,
+		})
+	}
+
+	// =========================
+	// RELATED PRODUCTS
+	// =========================
+
 	relatedProducts, total, err :=
 		repository.GetRelatedProducts(
 			subCategory.ID,
@@ -332,6 +394,23 @@ func GetProductPage(
 			priceMin,
 			priceMax,
 		)
+
+	relatedPromotionMap, err :=
+		promotionService.GetProductsPromotions(
+			tenantCode,
+			countryCode,
+			helper.ExtractProductIDs(relatedProducts),
+			helper.BuildPriceMap(relatedProducts),
+		)
+
+	for i := range relatedProducts {
+
+		if promotion,
+			ok := relatedPromotionMap[relatedProducts[i].ID]; ok {
+
+			relatedProducts[i].Promotion = promotion
+		}
+	}
 
 	relatedProductsDuration := time.Since(start)
 
@@ -421,6 +500,8 @@ func GetProductPage(
 		Category: *category,
 
 		SubCategory: *subCategory,
+
+		Images: imageDTOs,
 
 		Product: *product,
 

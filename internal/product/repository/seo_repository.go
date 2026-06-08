@@ -26,7 +26,7 @@ func GetProductSEO(
 	query := database.DB.
 		Table("seo_pages").
 		Where("slug = ?", slug).
-		Where("page_type = ?", "product")
+		Where("entity_type = ?", "product")
 
 	err := query.First(&seo).Error
 

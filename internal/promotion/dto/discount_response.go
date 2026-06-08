@@ -7,4 +7,5 @@ type DiscountResponse struct {
 	FinalPrice     float64 `json:"final_price"`
 	StartDate      string  `json:"start_date"`
 	EndDate        string  `json:"end_date"`
+	Priority       int     `json:"priority"`
 }

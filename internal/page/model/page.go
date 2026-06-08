@@ -53,9 +53,9 @@ type Product struct {
 
 	// CountryCode string `gorm:"column:country_code"`
 
-	CategoryID uint64 `gorm:"column:category_id"`
+	// CategoryID uint64 `gorm:"column:category_id"`
 
-	SubCategoryID uint64 `gorm:"column:subcategory_id"`
+	// SubCategoryID uint64 `gorm:"column:subcategory_id"`
 
 	Name string `gorm:"column:name"`
 
@@ -63,9 +63,9 @@ type Product struct {
 
 	SKU string `gorm:"column:sku"`
 
-	ShortDescription string `gorm:"column:short_description"`
+	ShortDescription string `gorm:"column:description"`
 
-	Description string `gorm:"column:description"`
+	// Description string `gorm:"column:content"`
 
 	Image string `gorm:"column:image"`
 
@@ -93,3 +93,17 @@ type Product struct {
 func (Product) TableName() string {
 	return "products"
 }
+
+// type ProductImage struct {
+// 	ID uint64 `gorm:"column:id"`
+
+// 	ProductID uint64 `gorm:"column:product_id"`
+
+// 	Image string `gorm:"column:image"`
+
+// 	SortOrder int `gorm:"column:sort_order"`
+// }
+
+// func (ProductImage) TableName() string {
+// 	return "product_images"
+// }

@@ -3,7 +3,9 @@ package service
 import (
 	"catalog-service/internal/logger"
 	"catalog-service/internal/page/dto"
+	"catalog-service/internal/page/helper"
 	"catalog-service/internal/page/repository"
+	promotionService "catalog-service/internal/promotion/service"
 	redisClient "catalog-service/internal/redis"
 	"time"
 
@@ -332,7 +334,31 @@ func GetSubCategoryPage(
 		return nil, err
 	}
 
+	promotionMap, err :=
+		promotionService.GetProductsPromotions(
+			tenantCode,
+			countryCode,
+			helper.ExtractProductIDs(products),
+			helper.BuildPriceMap(products),
+		)
+
+	if err != nil {
+		logger.Log.Warn(
+			"failed to fetch promotions",
+			zap.Error(err),
+		)
+	}
+
 	duration := time.Since(start)
+
+	for i := range products {
+
+		if promotion, ok := promotionMap[products[i].ID]; ok {
+
+			products[i].Promotion = promotion
+
+		}
+	}
 
 	logger.Log.Info(
 		"subcategory page fetched successfully",

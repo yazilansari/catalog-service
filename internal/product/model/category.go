@@ -7,9 +7,9 @@ type Category struct {
 
 	Slug string `gorm:"column:slug"`
 
-	ParentID uint64 `gorm:"column:parent_id"`
+	ParentID uint64 `gorm:"column:parent_id" json:"-"`
 
-	Status string `gorm:"column:status"`
+	// Status string `gorm:"column:status"`
 }
 
 func (Category) TableName() string {

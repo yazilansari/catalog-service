@@ -185,6 +185,9 @@ func GetProductPromotions(
 						return coupon.Amount
 
 					}(),
+					StartDate: coupon.StartDate.Format("2006-01-02 15:04:05"),
+					EndDate:   coupon.EndDate.Format("2006-01-02 15:04:05"),
+					Priority:  coupon.Priority,
 				},
 			)
 	}
@@ -603,6 +606,9 @@ func GetProductsPromotions(
 						return coupon.Amount
 
 					}(),
+					StartDate: coupon.StartDate.Format("2006-01-02 15:04:05"),
+					EndDate:   coupon.EndDate.Format("2006-01-02 15:04:05"),
+					Priority:  coupon.Priority,
 				},
 			)
 	}

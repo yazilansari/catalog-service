@@ -4,9 +4,11 @@ import (
 	"catalog-service/internal/database"
 	"catalog-service/internal/logger"
 	"catalog-service/internal/promotion/model"
+	"errors"
 	"time"
 
 	"go.uber.org/zap"
+	"gorm.io/gorm"
 )
 
 func GetActiveDiscountByProduct(
@@ -48,6 +50,17 @@ func GetActiveDiscountByProduct(
 			First(&promotion).
 			Error
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Log.Info(
+			"no active discount found",
+			zap.String("tenant_code", tenantCode),
+			zap.String("country_code", countryCode),
+			zap.Uint64("product_id", productID),
+		)
+
+		return nil, nil, nil
+	}
+
 	if err != nil {
 
 		logger.Log.Error(
@@ -67,6 +80,17 @@ func GetActiveDiscountByProduct(
 			Where("promotion_id = ?", promotion.ID).
 			First(&rule).
 			Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Log.Info(
+			"no discount rule found",
+			zap.String("tenant_code", tenantCode),
+			zap.String("country_code", countryCode),
+			zap.Uint64("product_id", productID),
+		)
+
+		return &promotion, nil, nil
+	}
 
 	if err != nil {
 
@@ -93,13 +117,41 @@ func GetActiveDiscountByProduct(
 	return &promotion, &rule, nil
 }
 
+type ProductCoupon struct {
+	ProductID uint64 `gorm:"column:product_id"`
+
+	CouponRuleID uint64 `gorm:"column:coupon_rule_id"`
+
+	PromotionID uint64 `gorm:"column:promotion_id"`
+
+	CouponCode string `gorm:"column:coupon_code"`
+
+	CouponType string `gorm:"column:coupon_type"`
+
+	ApplyTo string `gorm:"column:apply_to"`
+
+	Percentage float64 `gorm:"column:percentage"`
+
+	Amount float64 `gorm:"column:amount"`
+
+	ProductType string `gorm:"column:product_type"`
+
+	TotalUsed int `gorm:"column:total_used"`
+
+	Priority int `gorm:"column:priority"`
+
+	StartDate time.Time `gorm:"column:start_date"`
+
+	EndDate time.Time `gorm:"column:end_date"`
+}
+
 func GetActiveCouponsByProduct(
 	tenantCode string,
 	countryCode string,
 	productID uint64,
-) ([]model.CouponRule, error) {
+) ([]ProductCoupon, error) {
 
-	var coupons []model.CouponRule
+	var coupons []ProductCoupon
 
 	logger.Log.Info(
 		"fetching coupons by product",
@@ -110,11 +162,25 @@ func GetActiveCouponsByProduct(
 
 	err :=
 		database.DB.
-			Table("coupon_rules cr").
-			Select("cr.*").
+			Table("coupon_products cp").
+			Select(`
+				cp.product_id,
+				cr.id as coupon_rule_id,
+				cr.promotion_id,
+				cr.coupon_code,
+				cr.coupon_type,
+				cr.apply_to,
+				cr.percentage,
+				cr.amount,
+				cr.product_type,
+				cr.total_used,
+				p.start_date,
+				p.end_date,
+				p.priority
+			`).
 			Joins(`
-				INNER JOIN coupon_products cp
-				ON cp.coupon_rule_id = cr.id
+				INNER JOIN coupon_rules cr
+				ON cr.id = cp.coupon_rule_id
 			`).
 			Joins(`
 				INNER JOIN promotions p
@@ -192,6 +258,14 @@ func GetCashbackByProduct(
 			First(&cashback).
 			Error
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Log.Info(
+			"no cashback found",
+			zap.Uint64("product_id", productID),
+		)
+		return nil, nil
+	}
+
 	if err != nil {
 
 		logger.Log.Error(
@@ -257,6 +331,14 @@ func GetFOCByProduct(
 			First(&foc).
 			Error
 
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Log.Info(
+			"no foc found",
+			zap.Uint64("product_id", productID),
+		)
+		return nil, nil
+	}
+
 	if err != nil {
 
 		logger.Log.Error(
@@ -318,6 +400,14 @@ func GetBuyXGetYByProduct(
 			Where("promo.end_date >= ?", time.Now()).
 			First(&rule).
 			Error
+
+	if errors.Is(err, gorm.ErrRecordNotFound) {
+		logger.Log.Info(
+			"no buy x get y found",
+			zap.Uint64("product_id", productID),
+		)
+		return nil, nil
+	}
 
 	if err != nil {
 

@@ -85,7 +85,7 @@ func GetActiveDiscountsByProducts(
 	return results, err
 }
 
-type ProductCoupon struct {
+type ProductCoupons struct {
 	ProductID uint64 `gorm:"column:product_id"`
 
 	CouponRuleID uint64 `gorm:"column:coupon_rule_id"`
@@ -105,15 +105,21 @@ type ProductCoupon struct {
 	ProductType string `gorm:"column:product_type"`
 
 	TotalUsed int `gorm:"column:total_used"`
+
+	Priority int `gorm:"column:priority"`
+
+	StartDate time.Time `gorm:"column:start_date"`
+
+	EndDate time.Time `gorm:"column:end_date"`
 }
 
 func GetActiveCouponsByProducts(
 	tenantCode string,
 	countryCode string,
 	productIDs []uint64,
-) ([]ProductCoupon, error) {
+) ([]ProductCoupons, error) {
 
-	var results []ProductCoupon
+	var results []ProductCoupons
 
 	logger.Log.Info(
 		"fetching coupons by products",
@@ -135,7 +141,10 @@ func GetActiveCouponsByProducts(
 				cr.percentage,
 				cr.amount,
 				cr.product_type,
-				cr.total_used
+				cr.total_used,
+				p.start_date,
+				p.end_date,
+				p.priority
 			`).
 			Joins(`
 				INNER JOIN coupon_rules cr

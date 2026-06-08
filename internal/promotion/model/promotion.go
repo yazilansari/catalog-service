@@ -9,6 +9,7 @@ type Promotion struct {
 	Description string    `gorm:"column:description"`
 	StartDate   time.Time `gorm:"column:start_date"`
 	EndDate     time.Time `gorm:"column:end_date"`
+	Priority    int       `gorm:"column:priority"`
 }
 
 func (Promotion) TableName() string {
