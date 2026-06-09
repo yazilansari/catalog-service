@@ -23,7 +23,7 @@ type ProductElasticDocument struct {
 
 	Price float64 `gorm:"column:price" json:"price"`
 
-	DiscountPrice float64 `gorm:"column:discount_price" json:"discount_price"`
+	// DiscountPrice float64 `gorm:"column:discount_price" json:"discount_price"`
 
 	Status string `gorm:"column:status" json:"status"`
 

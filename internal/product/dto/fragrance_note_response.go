@@ -1,21 +1,21 @@
 package dto
 
 type FragranceNoteResponse struct {
-	TopNote string `json:"top_note"`
+	TopNote string `json:"topNote"`
 
-	HeartNote string `json:"heart_note"`
+	HeartNote string `json:"heartNote"`
 
-	BaseNote string `json:"base_note"`
+	BaseNote string `json:"baseNote"`
 
-	TopNoteImage string `json:"top_note_image"`
+	TopNoteImage string `json:"topNoteImage"`
 
-	HeartNoteImage string `json:"heart_note_image"`
+	HeartNoteImage string `json:"heartNoteImage"`
 
-	BaseNoteImage string `json:"base_note_image"`
+	BaseNoteImage string `json:"baseNoteImage"`
 
-	TopNoteDescription string `json:"top_note_description"`
+	TopNoteDescription string `json:"topNoteDescription"`
 
-	HeartNoteDescription string `json:"heart_note_description"`
+	HeartNoteDescription string `json:"heartNoteDescription"`
 
-	BaseNoteDescription string `json:"base_note_description"`
+	BaseNoteDescription string `json:"baseNoteDescription"`
 }

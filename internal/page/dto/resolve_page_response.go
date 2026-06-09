@@ -1,9 +1,9 @@
 package dto
 
 type ResolvePageResponse struct {
-	PageType string `json:"page_type"`
+	PageType string `json:"pageType"`
 
 	Slug string `json:"slug"`
 
-	RedirectURL string `json:"redirect_url"`
+	RedirectURL string `json:"redirectUrl"`
 }

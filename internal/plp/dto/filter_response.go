@@ -3,7 +3,7 @@ package dto
 type FilterResponse struct {
 	Brands []string `json:"brands"`
 
-	PriceRange PriceRange `json:"price_range"`
+	PriceRange PriceRange `json:"priceRange"`
 }
 
 type PriceRange struct {

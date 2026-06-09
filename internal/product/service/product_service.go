@@ -305,7 +305,7 @@ func GetProductPage(
 
 					Price: v.Price,
 
-					DiscountPrice: v.DiscountPrice,
+					// DiscountPrice: v.DiscountPrice,
 
 					Stock: v.Stock,
 				},

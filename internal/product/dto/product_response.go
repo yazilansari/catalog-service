@@ -3,11 +3,11 @@ package dto
 import "catalog-service/internal/product/model"
 
 type ProductResponse struct {
-	PageType string `json:"page_type"`
+	PageType string `json:"pageType"`
 
 	Category model.Category `json:"category"`
 
-	SubCategory model.Category `json:"subcategory"`
+	SubCategory model.Category `json:"subCategory"`
 
 	Product model.Product `json:"product"`
 
@@ -15,9 +15,9 @@ type ProductResponse struct {
 
 	Variants []ProductVariantResponse `json:"variants"`
 
-	FragranceNotes []FragranceNoteResponse `json:"fragrance_notes"`
+	FragranceNotes []FragranceNoteResponse `json:"fragranceNotes"`
 
-	RelatedProducts []RelatedProductResponse `json:"related_products"`
+	RelatedProducts []RelatedProductResponse `json:"relatedProducts"`
 
 	SEO model.SEO `json:"seo"`
 }

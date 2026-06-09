@@ -9,7 +9,7 @@ type ProductVariantResponse struct {
 
 	Price float64 `json:"price"`
 
-	DiscountPrice float64 `json:"discount_price"`
+	// DiscountPrice float64 `json:"discount_price"`
 
 	Stock int `json:"stock"`
 }

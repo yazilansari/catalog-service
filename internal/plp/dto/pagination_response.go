@@ -1,9 +1,9 @@
 package dto
 
 type PaginationResponse struct {
-	NextCursor string `json:"next_cursor"`
+	NextCursor string `json:"nextCursor"`
 
 	Limit int `json:"limit"`
 
-	HasMore bool `json:"has_more"`
+	HasMore bool `json:"hasMore"`
 }

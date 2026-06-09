@@ -5,6 +5,7 @@ import (
 	"catalog-service/internal/plp/dto"
 	"catalog-service/internal/plp/model"
 	"catalog-service/internal/plp/repository"
+	promotionService "catalog-service/internal/promotion/service"
 	redisClient "catalog-service/internal/redis"
 	"encoding/json"
 	"strconv"
@@ -290,6 +291,62 @@ func GetProducts(
 				products,
 				product,
 			)
+	}
+
+	// =========================
+	// PROMOTIONS
+	// =========================
+
+	productIDs :=
+		make(
+			[]uint64,
+			0,
+			len(products),
+		)
+
+	priceMap :=
+		make(
+			map[uint64]float64,
+		)
+
+	for _, product := range products {
+
+		productIDs =
+			append(
+				productIDs,
+				product.ID,
+			)
+
+		priceMap[product.ID] =
+			product.Price
+	}
+
+	promotionMap,
+		err :=
+		promotionService.GetProductsPromotions(
+			tenantCode,
+			countryCode,
+			productIDs,
+			priceMap,
+		)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch product promotions",
+
+			zap.Error(err),
+		)
+	}
+
+	for i := range products {
+
+		if promotion,
+			ok := promotionMap[products[i].ID]; ok {
+
+			products[i].Promotion =
+				promotion
+		}
 	}
 
 	// =========================

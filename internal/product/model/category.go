@@ -1,11 +1,11 @@
 package model
 
 type Category struct {
-	ID uint64 `gorm:"column:id"`
+	ID uint64 `gorm:"column:id" json:"id"`
 
-	Name string `gorm:"column:name"`
+	Name string `gorm:"column:name" json:"name"`
 
-	Slug string `gorm:"column:slug"`
+	Slug string `gorm:"column:slug" json:"slug"`
 
 	ParentID uint64 `gorm:"column:parent_id" json:"-"`
 

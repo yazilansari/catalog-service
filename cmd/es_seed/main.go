@@ -178,15 +178,17 @@ func main() {
 
 				"category": product.Category,
 
-				"subcategory": product.SubCategory,
+				"subCategory": product.SubCategory,
 
 				"brand": product.Brand,
 
-				"discount_price": product.DiscountPrice,
+				// "promotion": product.Promotion,
+
+				// "discount_price": product.DiscountPrice,
 
 				"status": product.Status,
 
-				"created_at": product.CreatedAt,
+				"createdAt": product.CreatedAt,
 
 				"sales_count": 0,
 			}
