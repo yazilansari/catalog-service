@@ -621,3 +621,56 @@ func GetProductPage(
 
 	return &response, nil
 }
+
+func GetProductSnapshot(
+	tenant string,
+	country string,
+	productID uint64,
+) (
+	*dto.ProductSnapshotResponse,
+	error,
+) {
+
+	logger.Log.Info(
+		"fetching product snapshot",
+		zap.Uint64("product_id", productID),
+	)
+
+	product,
+		err :=
+		repository.GetProductByID(
+			tenant,
+			country,
+			productID,
+		)
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch product snapshot",
+			zap.Error(err),
+			zap.Uint64("product_id", productID),
+		)
+
+		return nil,
+			err
+	}
+
+	return &dto.ProductSnapshotResponse{
+
+		ID: product.ID,
+
+		Name: product.Name,
+
+		Slug: product.Slug,
+
+		SKU: product.SKU,
+
+		Image: product.Image,
+
+		Price: product.Price,
+
+		Stock: product.Stock,
+	}, nil
+
+}

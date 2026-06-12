@@ -19,4 +19,9 @@ func SetupProductRoutes(
 		"/:slug",
 		handler.GetProductPage,
 	)
+
+	product.Get(
+		"/snapshot/:id",
+		handler.GetProductSnapshot,
+	)
 }

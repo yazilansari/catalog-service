@@ -3,6 +3,7 @@ package repository
 import (
 	"catalog-service/internal/database"
 	"catalog-service/internal/logger"
+	"catalog-service/internal/product/dto"
 	"catalog-service/internal/product/model"
 	"time"
 
@@ -89,4 +90,66 @@ func GetProductBySlug(
 	}
 
 	return &product, nil
+}
+
+func GetProductByID(
+	tenantCode string,
+	countryCode string,
+	productID uint64,
+) (
+	*dto.ProductSnapshotResponse,
+	error,
+) {
+
+	logger.Log.Info(
+		"fetching product by id",
+		zap.Uint64("product_id", productID),
+	)
+
+	var product dto.ProductSnapshotResponse
+
+	err :=
+		database.DB.
+			Table(
+				"products p",
+			).
+			Select(`
+			p.id,
+			p.name,
+			p.slug,
+			p.sku,
+			p.image,
+			p.price,
+			p.quantity AS stock
+		`).
+			Where(
+				`
+			p.id = ?
+			AND p.tenant_code = ?
+			AND p.country_code = ?
+			AND p.status = ?
+			`,
+				productID,
+				tenantCode,
+				countryCode,
+				"published",
+			).
+			Take(
+				&product,
+			).Error
+
+	if err != nil {
+
+		logger.Log.Error(
+			"failed to fetch product by id",
+			zap.Error(err),
+		)
+
+		return nil,
+			err
+	}
+
+	return &product,
+		nil
+
 }

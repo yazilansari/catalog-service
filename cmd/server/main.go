@@ -8,6 +8,7 @@ import (
 	plpRoutes "catalog-service/internal/plp/routes"
 	productRoutes "catalog-service/internal/product/routes"
 	productSearchRoutes "catalog-service/internal/product_search/routes"
+	promotionRoutes "catalog-service/internal/promotion/routes"
 	redisClient "catalog-service/internal/redis"
 	seoRoutes "catalog-service/internal/seo/routes"
 
@@ -132,6 +133,8 @@ func main() {
 	productRoutes.SetupProductRoutes(api)
 
 	plpRoutes.SetupPLPRoutes(api)
+
+	promotionRoutes.SetupPromotionRoutes(api)
 
 	// =========================
 	// Start Server
